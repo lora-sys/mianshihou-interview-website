@@ -1,0 +1,43 @@
+version: '3.8'
+ 
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: mianshihou-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: mianshihou
+      POSTGRES_PASSWORD: 123456
+      POSTGRES_DB: mianshihou
+      POSTGRES_INITDB_ARGS: "-E UTF8 --locale=C"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./apps/api/sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mianshihou"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+ 
+  redis:
+    image: redis:7-alpine
+    container_name: mianshihou-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    restart: unless-stopped
+ 
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
