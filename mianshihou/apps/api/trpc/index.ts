@@ -5,9 +5,9 @@ import { db } from "../index";
 import { users } from "../db/schema";
 import { eq } from "drizzle-orm";
 
-interface FastifyRequestWithCookies extends CreateFastifyContextOptions['req'] {
+type FastifyRequestWithCookies = CreateFastifyContextOptions['req'] & {
   cookies?: Record<string, string>;
-}
+};
 
 export function createContext(opts: CreateFastifyContextOptions) {
   const requestId = (opts.req.headers['x-request-id'] as string) 

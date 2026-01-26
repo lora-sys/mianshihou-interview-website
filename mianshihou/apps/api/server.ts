@@ -35,7 +35,7 @@ fastify.register(fastifyTRPCPlugin, {
   },
 });
 
-fastify.setErrorHandler((error, request, reply) => {
+fastify.setErrorHandler((error : any, request, reply) => {
   log.error('请求错误', { error: error.message, stack: error.stack, url: request.url });
   reply.status(error.statusCode || 500).send({
     success: false,
