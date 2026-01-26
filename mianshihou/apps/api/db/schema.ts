@@ -23,6 +23,7 @@ export const users = pgTable(
     userAccount: varchar("user_account", { length: 256 }).notNull().unique(),
     userPassword: varchar("user_password", { length: 64 }).notNull(),
     email: varchar("email", { length: 256 }).unique(),
+    emailVerified: boolean("email_verified").default(false).notNull(),
     phone: varchar("phone", { length: 20 }).unique(),
     unionId: varchar("union_id", { length: 256 }),
     mpOpenId: varchar("mp_open_id", { length: 256 }),
@@ -45,6 +46,83 @@ export const users = pgTable(
     index("idx_user_status").on(table.status),
   ],
 );
+
+// Better-Auth Session 表
+export const sessions = pgTable(
+  "session",
+  {
+    id: text("id").primaryKey(),
+    userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    expiresAt: timestamp("expires_at").notNull(),
+    token: text("token").notNull().unique(),
+    ipAddress: text("ip_address"),
+    userAgent: text("user_agent"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("session_userId_idx").on(table.userId),
+  ],
+);
+
+// Better-Auth Account 表（用于 OAuth 等）
+export const accounts = pgTable(
+  "account",
+  {
+    id: text("id").primaryKey(),
+    userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    accountId: text("account_id").notNull(),
+    providerId: text("provider_id").notNull(),
+    accessToken: text("access_token"),
+    refreshToken: text("refresh_token"),
+    idToken: text("id_token"),
+    accessTokenExpiresAt: timestamp("access_token_expires_at"),
+    refreshTokenExpiresAt: timestamp("refresh_token_expires_at"),
+    scope: text("scope"),
+    password: text("password"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("account_userId_idx").on(table.userId),
+  ],
+);
+
+// Better-Auth Verification 表（用于邮箱验证等）
+export const verifications = pgTable(
+  "verification",
+  {
+    id: text("id").primaryKey(),
+    identifier: text("identifier").notNull(),
+    value: text("value").notNull(),
+    expiresAt: timestamp("expires_at").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("verification_identifier_idx").on(table.identifier),
+  ],
+);
+
+// Relations
+export const usersRelations = relations(users, ({ many }) => ({
+  sessions: many(sessions),
+  accounts: many(accounts),
+}));
+
+export const sessionsRelations = relations(sessions, ({ one }) => ({
+  user: one(users, {
+    fields: [sessions.userId],
+    references: [users.id],
+  }),
+}));
+
+export const accountsRelations = relations(accounts, ({ one }) => ({
+  user: one(users, {
+    fields: [accounts.userId],
+    references: [users.id],
+  }),
+}));
 
 // 题目表
 export const questions = pgTable(

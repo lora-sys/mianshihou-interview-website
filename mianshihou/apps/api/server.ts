@@ -1,59 +1,44 @@
 import Fastify from 'fastify';
-import fastifyCors from '@fastify/cors';
-import fastifyJwt from '@fastify/jwt';
+import fastifyCookie from '@fastify/cookie';
 import { fastifyTRPCPlugin } from '@trpc/server/adapters/fastify';
 import { appRouter } from './trpc/router';
-import { createContext } from './trpc/index';
+import { createContextAsync } from './trpc/index';
+import corsPlugin from './plugins/cors';
+import { log } from './lib/logger';
 
-// 创建 Fastify 实例
 const fastify = Fastify({
-  logger: {
-    level: process.env.LOG_LEVEL || 'info',
-    transport: {
-      target: 'pino-pretty',
-      options: {
-        colorize: true,
-        translateTime: 'HH:MM:ss Z',
-        ignore: 'pid,hostname',
-      },
-    },
-  },
+  logger: process.env.NODE_ENV === 'development' ? {
+    level: 'info',
+    transport: { target: 'pino-pretty', options: { colorize: true, ignore: 'pid,hostname' } },
+  } : { level: 'info' },
 });
 
-// 注册 CORS
-fastify.register(fastifyCors, {
+fastify.register(fastifyCookie, {
+  secret: process.env.COOKIE_SECRET || 'your-cookie-secret-change-this',
+});
+fastify.register(corsPlugin, {
   origin: process.env.CORS_ORIGIN || '*',
   credentials: true,
 });
 
-// 注册 JWT（预留，后续用于认证）
-fastify.register(fastifyJwt, {
-  secret: process.env.JWT_SECRET || 'your-secret-key-change-in-production',
-});
+fastify.get('/health', async () => ({
+  status: 'ok',
+  timestamp: new Date().toISOString(),
+  uptime: process.uptime(),
+}));
 
-// 健康检查端点
-fastify.get('/health', async (request, reply) => {
-  return {
-    status: 'ok',
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-  };
-});
-
-// 注册 tRPC
 fastify.register(fastifyTRPCPlugin, {
   prefix: '/trpc',
   trpcOptions: {
     router: appRouter,
-    createContext,
+    createContext: createContextAsync,
   },
 });
 
-// 全局错误处理
-fastify.setErrorHandler((error: any, request: any, reply: any) => {
-  fastify.log.error(error);
-
+fastify.setErrorHandler((error, request, reply) => {
+  log.error('请求错误', { error: error.message, stack: error.stack, url: request.url });
   reply.status(error.statusCode || 500).send({
+    success: false,
     error: {
       message: error.message,
       code: error.code || 'INTERNAL_SERVER_ERROR',
@@ -62,30 +47,25 @@ fastify.setErrorHandler((error: any, request: any, reply: any) => {
   });
 });
 
-// 启动服务器
 const start = async () => {
   try {
     const port = parseInt(process.env.PORT || '3000', 10);
     const host = process.env.HOST || '0.0.0.0';
-
     await fastify.listen({ port, host });
-    fastify.log.info(`🚀 Server listening on http://${host}:${port}`);
+    fastify.log.info(`Server listening on http://${host}:${port}`);
   } catch (err) {
     fastify.log.error(err);
     process.exit(1);
   }
 };
 
-// 优雅关闭
-const gracefulShutdown = async (signal: string) => {
+async function gracefulShutdown(signal: string) {
   fastify.log.info(`Received ${signal}, shutting down gracefully...`);
   await fastify.close();
-  fastify.log.info('Server closed');
   process.exit(0);
-};
+}
 
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
-process.on('SIGINT', ()   => gracefulShutdown('SIGINT'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
-// 启动服务器
 start();
