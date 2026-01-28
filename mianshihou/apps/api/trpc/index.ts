@@ -4,42 +4,58 @@ import { createLogger, log } from "../lib/logger";
 import { db } from "../index";
 import { users } from "../db/schema";
 import { eq } from "drizzle-orm";
+import { auth } from "../lib/auth";
+import { headersFromRequest } from "../lib/cookie-utils";
 
 type FastifyRequestWithCookies = CreateFastifyContextOptions['req'] & {
   cookies?: Record<string, string>;
 };
 
 export function createContext(opts: CreateFastifyContextOptions) {
-  const requestId = (opts.req.headers['x-request-id'] as string) 
+  const requestId = (opts.req.headers['x-request-id'] as string)
     || `req_${Date.now()}_${Math.random().toString(36).substring(3, 6)}`;
-  
+
   const logger = createLogger('request').child({ requestId });
-  
+
   log.info('请求开始', { method: opts.req.method, url: opts.req.url });
-  
+
   return { opts, logger, requestId };
 }
 
 export async function createContextAsync(opts: CreateFastifyContextOptions) {
   const ctx = createContext(opts);
-  
-  // 从 cookie 获取 user_id
-  const userId = (opts.req as FastifyRequestWithCookies).cookies?.user_id;
-  
-  let dbUser = null;
-  if (userId) {
-    try {
-      const [user] = await db.select().from(users).where(eq(users.id, parseInt(userId))).limit(1);
-      dbUser = user;
-      log.info('用户已登录', { userId: dbUser.id, email: dbUser.email });
-    } catch (error) {
-      log.error('从数据库获取用户信息失败', error as Error);
+
+  let user = null;
+  let session = null;
+
+  try {
+    // 使用解耦的工具函数获取 Better-Auth Headers
+    const headers = headersFromRequest(opts.req);
+
+    // 使用 Better-Auth 获取会话，传入 headers
+    session = await auth.api.getSession({
+      headers,
+    });
+
+    if (session?.user) {
+      user = {
+        id: session.user.id,
+        email: session.user.email,
+        userName: session.user.name,
+        userAvatar: session.user.image,
+        userRole: session.user.role || 'user',
+        status: session.user.status || 'active',
+      };
+      log.info('用户已登录', { userId: user.id, email: user.email });
     }
+  } catch (error) {
+    log.error('获取 Better-Auth 会话失败', error as Error);
   }
-  
-  return { 
-    ...ctx, 
-    user: dbUser, 
+
+  return {
+    ...ctx,
+    user,
+    session,
     req: opts.req as FastifyRequestWithCookies,
     res: opts.res,
   };
@@ -49,7 +65,15 @@ export type Context = {
   opts: CreateFastifyContextOptions;
   logger: ReturnType<typeof createLogger>;
   requestId: string;
-  user: typeof users.$inferSelect | null;
+  user: {
+    id: string;
+    email: string;
+    userName: string;
+    userAvatar: string | null;
+    userRole: string;
+    status: string;
+  } | null;
+  session: any | null;
   req: FastifyRequestWithCookies;
   res: CreateFastifyContextOptions['res'];
 };

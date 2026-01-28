@@ -12,7 +12,7 @@ export const postFavourRouter = router({
       .input(
         z.object({
           postId: z.number(),
-          userId: z.number(),
+          userId: z.string(),
         }),
       )
       .mutation(async ({ ctx, input }) => {
@@ -27,7 +27,7 @@ export const postFavourRouter = router({
             .where(
               and(
                 eq(postFavours.postId, BigInt(input.postId)),
-                eq(postFavours.userId, BigInt(input.userId)),
+                eq(postFavours.userId, input.userId),
               ),
             )
             .limit(1);
@@ -42,7 +42,7 @@ export const postFavourRouter = router({
             .insert(postFavours)
             .values({
               postId: BigInt(input.postId),
-              userId: BigInt(input.userId),
+              userId: input.userId,
             })
             .returning();
 
@@ -64,7 +64,7 @@ export const postFavourRouter = router({
       .input(
         z.object({
           postId: z.number(),
-          userId: z.number(),
+          userId: z.string(),
         }),
       )
       .mutation(async ({ ctx, input }) => {
@@ -79,7 +79,7 @@ export const postFavourRouter = router({
             .where(
               and(
                 eq(postFavours.postId, BigInt(input.postId)),
-                eq(postFavours.userId, BigInt(input.userId)),
+                eq(postFavours.userId, input.userId),
               ),
             )
             .limit(1);
@@ -94,7 +94,7 @@ export const postFavourRouter = router({
             .where(
               and(
                 eq(postFavours.postId, BigInt(input.postId)),
-                eq(postFavours.userId, BigInt(input.userId)),
+                eq(postFavours.userId, input.userId),
               ),
             )
             .returning();
@@ -117,7 +117,7 @@ export const postFavourRouter = router({
       .input(
         z.object({
           postId: z.number(),
-          userId: z.number(),
+          userId: z.string(),
         }),
       )
       .query(async ({ ctx, input }) => {
@@ -131,7 +131,7 @@ export const postFavourRouter = router({
           .where(
             and(
               eq(postFavours.postId, BigInt(input.postId)),
-              eq(postFavours.userId, BigInt(input.userId)),
+              eq(postFavours.userId, input.userId),
             ),
           )
           .limit(1);
@@ -157,14 +157,14 @@ export const postFavourRouter = router({
       }),
 
     getByUserId: publicProcedure
-      .input(z.object({ userId: z.number() }))
+      .input(z.object({ userId: z.string() }))
       .query(async ({ ctx, input }) => {
         ctx.logger.info({ userId: input.userId }, '获取用户的收藏列表');
 
         const favours = await db
           .select()
           .from(postFavours)
-          .where(eq(postFavours.userId, BigInt(input.userId)));
+          .where(eq(postFavours.userId, input.userId));
 
         ctx.logger.info({ userId: input.userId,
           count: favours.length 

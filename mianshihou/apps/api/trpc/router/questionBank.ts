@@ -14,7 +14,7 @@ export const questionBankRouter = router({
           title: z.string().min(1, { message: "标题不能为空" }),
           description: z.string().optional(),
           picture: z.string().optional(),
-          userId: z.number(),
+          userId: z.string(),
         }),
       )
       .mutation(async ({ ctx, input }) => {
@@ -201,7 +201,7 @@ export const questionBankRouter = router({
         z.object({
           questionBankId: z.number(),
           questionId: z.number(),
-          userId: z.number(),
+          userId: z.string(),
         }),
       )
       .mutation(async ({ ctx, input }) => {

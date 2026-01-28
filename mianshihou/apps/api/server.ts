@@ -5,6 +5,8 @@ import { appRouter } from './trpc/router';
 import { createContextAsync } from './trpc/index';
 import corsPlugin from './plugins/cors';
 import { log } from './lib/logger';
+import { auth } from './lib/auth';
+import { headersFromRequest } from './lib/cookie-utils';
 
 const fastify = Fastify({
   logger: process.env.NODE_ENV === 'development' ? {
@@ -20,6 +22,45 @@ fastify.register(corsPlugin, {
   origin: process.env.CORS_ORIGIN || '*',
   credentials: true,
 });
+
+// Register authentication endpoint with catch-all route
+// Better-Auth docs: https://www.better-auth.com/docs/integrations/fastify
+// Fastify uses /:path* for catch-all routes (not just *)
+fastify.all("/api/auth/*", async (request, reply) => {
+    try {
+      // Construct request URL
+      const url = new URL(request.url, `http://${request.headers.host}`);
+
+      // Convert Fastify headers to standard Headers object
+      const headers = new Headers();
+      Object.entries(request.headers).forEach(([key, value]) => {
+        if (value) headers.append(key, value.toString());
+      });
+
+      // Create Fetch API-compatible request
+      const req = new Request(url.toString(), {
+        method: request.method,
+        headers,
+        ...(request.body ? { body: JSON.stringify(request.body) } : {}),
+      });
+
+      // Process authentication request
+      const response = await auth.handler(req);
+
+      // Forward response to client
+      reply.status(response.status);
+      response.headers.forEach((value, key) => reply.header(key, value));
+      reply.send(response.body ? await response.text() : null);
+
+    } catch (error) {
+      log.error("Authentication Error:", error);
+      reply.status(500).send({
+        error: "Internal authentication error",
+        code: "AUTH_FAILURE"
+      });
+    }
+  }
+);
 
 fastify.get('/health', async () => ({
   status: 'ok',
@@ -49,7 +90,7 @@ fastify.setErrorHandler((error : any, request, reply) => {
 
 const start = async () => {
   try {
-    const port = parseInt(process.env.PORT || '3000', 10);
+    const port = parseInt(process.env.PORT || '3001', 10);
     const host = process.env.HOST || '0.0.0.0';
     await fastify.listen({ port, host });
     fastify.log.info(`Server listening on http://${host}:${port}`);

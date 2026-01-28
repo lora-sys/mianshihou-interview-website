@@ -1,25 +1,10 @@
 import { router, publicProcedure } from "../index";
 import { z } from "zod";
 import { auth } from "../../lib/auth";
-import { db } from "../../index";
-import { users } from "../../db/schema";
-import { eq } from "drizzle-orm";
 import { throwIf, throwIfNull } from "../../lib/exception";
 import { ErrorType } from "../../lib/errors";
 import { log } from "../../lib/logger";
-import type { Context } from "../index";
-
-function generateUserAccount(email: string): string {
-  const prefix = email.split("@")[0];
-  const random = Math.random().toString(36).substring(2, 8);
-  return `${prefix}_${random}`;
-}
-
-function getUserFromCookie(ctx: Context) {
-  const userId = ctx.req.cookies?.user_id;
-  if (!userId) return null;
-  return { id: parseInt(userId) };
-}
+import { headersFromRequest } from "../../lib/cookie-utils";
 
 export const authRouter = router({
   signUp: publicProcedure
@@ -27,29 +12,43 @@ export const authRouter = router({
       z.object({
         email: z.string().email(),
         password: z.string().min(6),
-        name: z.string().min(1),
+        name: z.string().min(1).optional(),
       }),
     )
-    .mutation(async ({ ctx, input }) => {
-      log.info('用户注册', { email: input.email });
+    .mutation(async ({ input, ctx }) => {
+      log.info('用户注册请求', { email: input.email });
 
-      const [existingUser] = await db.select().from(users).where(eq(users.email, input.email)).limit(1);
-      throwIf(!!existingUser, ErrorType.USER_ALREADY_EXISTS, undefined, { email: input.email });
+      try {
+        // 使用 Better-Auth 的 API 方法，并传递 headers 以获取 cookies
+        const headers = headersFromRequest(ctx.req);
+        const result = await auth.api.signUpEmail({
+          body: {
+            email: input.email,
+            password: input.password,
+            name: input.name || input.email.split('@')[0],
+          },
+          headers,
+        });
 
-      const userAccount = generateUserAccount(input.email);
-      log.info('创建用户', { userAccount, email: input.email });
-      
-      const [newUser] = await db.insert(users).values({
-        userAccount,
-        userPassword: input.password,
-        email: input.email,
-        userName: input.name,
-        emailVerified: false,
-      }).returning();
+        log.info('用户注册成功', {
+          email: input.email,
+          userId: result.user?.id
+        });
 
-      log.info('用户注册成功', { userId: newUser.id, email: input.email });
-
-      return { user: newUser, message: "注册成功" };
+        return {
+          user: result.user,
+          message: "注册成功",
+        };
+      } catch (error: any) {
+        // Better-Auth v1.4+ uses structured error codes
+        if (error?.code === 'USER_EXISTS') {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "该邮箱已被注册",
+          });
+        }
+        throw error;
+      }
     }),
 
   signIn: publicProcedure
@@ -59,48 +58,80 @@ export const authRouter = router({
         password: z.string(),
       }),
     )
-    .mutation(async ({ ctx, input }) => {
-      log.info('用户登录', { email: input.email });
+    .mutation(async ({ input, ctx }) => {
+      log.info('用户登录请求', { email: input.email });
 
-      const [user] = await db.select().from(users).where(eq(users.email, input.email)).limit(1);
-      throwIfNull(user, ErrorType.USER_NOT_FOUND, undefined, { email: input.email });
+      try {
+        // 使用 Better-Auth 的 API 方法，并传递 headers 以获取 cookies
+        const headers = headersFromRequest(ctx.req);
+        const result = await auth.api.signInEmail({
+          body: {
+            email: input.email,
+            password: input.password,
+          },
+          headers,
+        });
 
-      log.info('验证密码', { userId: user.id, email: input.email });
+        log.info('用户登录成功', {
+          email: input.email,
+          userId: result.user?.id
+        });
 
-      throwIf(user.userPassword !== input.password, ErrorType.INVALID_PASSWORD, undefined, { userId: user.id });
-
-      log.info('用户登录成功', { userId: user.id, email: input.email });
-
-      // 设置 cookie
-      ctx.res.setCookie('user_id', user.id.toString(), {
-        path: '/',
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        maxAge: 60 * 60 * 24 * 7, // 7天
-        sameSite: 'lax',
-      });
-
-      return { user, message: "登录成功" };
+        return {
+          user: result.user,
+          message: "登录成功",
+        };
+      } catch (error: any) {
+        if (error?.status === 401 || error?.message?.includes('Invalid credentials')) {
+          throw new TRPCError({
+            code: "UNAUTHORIZED",
+            message: "邮箱或密码错误",
+          });
+        }
+        throw error;
+      }
     }),
 
   signOut: publicProcedure.mutation(async ({ ctx }) => {
-    ctx.res.clearCookie('user_id');
-    return { success: true };
+    log.info('用户登出', { userId: ctx.user?.id });
+
+    try {
+      // 使用解耦的工具函数获取 Better-Auth Headers
+      const headers = headersFromRequest(ctx.req);
+
+      await auth.api.signOut({
+        headers,
+      });
+
+      return { success: true, message: "登出成功" };
+    } catch (error) {
+      log.error('登出失败', error as Error);
+      throw new TRPCError({
+        code: "INTERNAL_SERVER_ERROR",
+        message: "登出失败",
+      });
+    }
   }),
 
   getSession: publicProcedure.query(async ({ ctx }) => {
-    const userId = ctx.req.cookies?.user_id;
-    if (!userId) return null;
-    
-    const [user] = await db.select().from(users).where(eq(users.id, parseInt(userId))).limit(1);
-    return user ? { user, session: { userId: user.id } } : null;
+    log.debug('获取会话信息', { userId: ctx.user?.id });
+
+    return {
+      user: ctx.user,
+      session: ctx.session,
+    };
   }),
 
   me: publicProcedure.query(async ({ ctx }) => {
-    const userId = ctx.req.cookies?.user_id;
-    if (!userId) return null;
-    
-    const [user] = await db.select().from(users).where(eq(users.id, parseInt(userId))).limit(1);
-    return user || null;
+    log.debug('获取用户资料', { userId: ctx.user?.id });
+
+    return {
+      id: ctx.user?.id,
+      email: ctx.user?.email,
+      userName: ctx.user?.userName,
+      userAvatar: ctx.user?.userAvatar,
+      userRole: ctx.user?.userRole,
+      status: ctx.user?.status,
+    };
   }),
 });

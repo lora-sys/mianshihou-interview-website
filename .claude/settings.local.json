@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__context7__query-docs",
+      "mcp__fetch__fetch",
+      "mcp__context7__resolve-library-id",
+      "Bash(pkill:*)",
+      "Bash(curl:*)",
+      "Bash(BETTER_AUTH_URL=http://localhost:3000 bun run dev:*)"
+    ]
+  }
+}

@@ -12,7 +12,7 @@ export const postThumbRouter = router({
       .input(
         z.object({
           postId: z.number(),
-          userId: z.number(),
+          userId: z.string(),
         }),
       )
       .mutation(async ({ ctx, input }) => {
@@ -27,7 +27,7 @@ export const postThumbRouter = router({
             .where(
               and(
                 eq(postThumbs.postId, BigInt(input.postId)),
-                eq(postThumbs.userId, BigInt(input.userId)),
+                eq(postThumbs.userId, input.userId),
               ),
             )
             .limit(1);
@@ -42,7 +42,7 @@ export const postThumbRouter = router({
             .insert(postThumbs)
             .values({
               postId: BigInt(input.postId),
-              userId: BigInt(input.userId),
+              userId: input.userId,
             })
             .returning();
 
@@ -64,7 +64,7 @@ export const postThumbRouter = router({
       .input(
         z.object({
           postId: z.number(),
-          userId: z.number(),
+          userId: z.string(),
         }),
       )
       .mutation(async ({ ctx, input }) => {
@@ -79,7 +79,7 @@ export const postThumbRouter = router({
             .where(
               and(
                 eq(postThumbs.postId, BigInt(input.postId)),
-                eq(postThumbs.userId, BigInt(input.userId)),
+                eq(postThumbs.userId, input.userId),
               ),
             )
             .limit(1);
@@ -94,7 +94,7 @@ export const postThumbRouter = router({
             .where(
               and(
                 eq(postThumbs.postId, BigInt(input.postId)),
-                eq(postThumbs.userId, BigInt(input.userId)),
+                eq(postThumbs.userId, input.userId),
               ),
             )
             .returning();
@@ -117,7 +117,7 @@ export const postThumbRouter = router({
       .input(
         z.object({
           postId: z.number(),
-          userId: z.number(),
+          userId: z.string(),
         }),
       )
       .query(async ({ ctx, input }) => {
@@ -131,7 +131,7 @@ export const postThumbRouter = router({
           .where(
             and(
               eq(postThumbs.postId, BigInt(input.postId)),
-              eq(postThumbs.userId, BigInt(input.userId)),
+              eq(postThumbs.userId, input.userId),
             ),
           )
           .limit(1);
@@ -157,14 +157,14 @@ export const postThumbRouter = router({
       }),
 
     getByUserId: publicProcedure
-      .input(z.object({ userId: z.number() }))
+      .input(z.object({ userId: z.string() }))
       .query(async ({ ctx, input }) => {
         ctx.logger.info({ userId: input.userId }, '获取用户的点赞列表');
 
         const thumbs = await db
           .select()
           .from(postThumbs)
-          .where(eq(postThumbs.userId, BigInt(input.userId)));
+          .where(eq(postThumbs.userId, input.userId));
 
         ctx.logger.info({ userId: input.userId,
           count: thumbs.length 

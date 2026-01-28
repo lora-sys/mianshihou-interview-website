@@ -16,7 +16,7 @@ export const questionRouter = router({
           answer: z.string().optional(),
           tags: z.array(z.string()).optional(),
           questionBankId: z.number().optional(),
-          userId: z.number(),
+          userId: z.string(),
         }),
       )
       .mutation(async ({ ctx, input }) => {

@@ -19,9 +19,9 @@ import { relations } from "drizzle-orm";
 export const users = pgTable(
   "user",
   {
-    id: serial("id").primaryKey(),
-    userAccount: varchar("user_account", { length: 256 }).notNull().unique(),
-    userPassword: varchar("user_password", { length: 64 }).notNull(),
+    id: text("id").primaryKey(),
+    userAccount: varchar("user_account", { length: 256 }).unique(),
+    userPassword: varchar("user_password", { length: 64 }),
     email: varchar("email", { length: 256 }).unique(),
     emailVerified: boolean("email_verified").default(false).notNull(),
     phone: varchar("phone", { length: 20 }).unique(),
@@ -52,7 +52,7 @@ export const sessions = pgTable(
   "session",
   {
     id: text("id").primaryKey(),
-    userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
     expiresAt: timestamp("expires_at").notNull(),
     token: text("token").notNull().unique(),
     ipAddress: text("ip_address"),
@@ -70,7 +70,7 @@ export const accounts = pgTable(
   "account",
   {
     id: text("id").primaryKey(),
-    userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
     accountId: text("account_id").notNull(),
     providerId: text("provider_id").notNull(),
     accessToken: text("access_token"),
@@ -133,7 +133,7 @@ export const questions = pgTable(
     content: text("content").notNull(),
     tags: text("tags"),
     answer: text("answer"),
-    userId: integer("user_id")
+    userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     questionBankId: integer("question_bank_id").references(
@@ -162,7 +162,7 @@ export const questionBanks = pgTable(
     title: text("title").notNull(),
     description: text("description"),
     picture: text("picture"),
-    userId: integer("user_id")
+    userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     questionCount: integer("question_count").default(0),
@@ -185,7 +185,7 @@ export const questionBankQuestions = pgTable(
     questionId: integer("question_id")
       .notNull()
       .references(() => questions.id, { onDelete: "cascade" }),
-    userId: integer("user_id")
+    userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     createTime: timestamp("create_time").defaultNow().notNull(),
@@ -205,7 +205,7 @@ export const posts = pgTable(
     tags: text("tags"),
     thumbNum: integer("thumb_num").default(0).notNull(),
     favourNum: integer("favour_num").default(0).notNull(),
-    userId: bigint("user_id", { mode: "bigint" })
+    userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     createTime: timestamp("create_time").defaultNow().notNull(),
@@ -226,7 +226,7 @@ export const postThumbs = pgTable(
     postId: bigint("post_id", { mode: "bigint" })
       .notNull()
       .references(() => posts.id, { onDelete: "cascade" }),
-    userId: bigint("user_id", { mode: "bigint" })
+    userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     createTime: timestamp("create_time").defaultNow().notNull(),
@@ -242,7 +242,7 @@ export const postFavours = pgTable(
     postId: bigint("post_id", { mode: "bigint" })
       .notNull()
       .references(() => posts.id, { onDelete: "cascade" }),
-    userId: bigint("user_id", { mode: "bigint" })
+    userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     createTime: timestamp("create_time").defaultNow().notNull(),

@@ -14,7 +14,7 @@ export const postRouter = router({
           title: z.string().min(1, { message: "标题不能为空" }),
           content: z.string().min(1, { message: "内容不能为空" }),
           tags: z.string().optional(),
-          userId: z.number(),
+          userId: z.string(),
         }),
       )
       .mutation(async ({ ctx, input }) => {
@@ -29,7 +29,7 @@ export const postRouter = router({
               title: input.title,
               content: input.content,
               tags: input.tags,
-              userId: BigInt(input.userId),
+              userId: input.userId,
               thumbNum: 0,
               favourNum: 0,
             })
@@ -154,7 +154,7 @@ export const postRouter = router({
           page: z.number().min(1).default(1),
           pageSize: z.number().min(1).max(100).default(10),
           title: z.string().optional(),
-          userId: z.number().optional(),
+          userId: z.string().optional(),
         }),
       )
       .query(async ({ ctx, input }) => {
@@ -172,7 +172,7 @@ export const postRouter = router({
           conditions.push(like(posts.title, `%${input.title}%`));
         }
         if (input.userId) {
-          conditions.push(eq(posts.userId, BigInt(input.userId)));
+          conditions.push(eq(posts.userId, input.userId));
         }
 
         const [data, totalResult] = await Promise.all([
