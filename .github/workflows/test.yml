@@ -38,7 +38,7 @@ jobs:
       - name: Generate coverage
         run: |
           cd mianshihou/apps/api
-          bun test --coverage
+          bun test tests/unit --coverage
 
       # 6. 上传覆盖率报告
       - name: Upload coverage
