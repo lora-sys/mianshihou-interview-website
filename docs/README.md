@@ -7,6 +7,7 @@
 ### 🚀 快速开始
 - [Husky Git Hooks 指南](./husky-guide.md) - Git hooks 管理工具配置和使用
 - [Monorepo 初始化](./first.md) - pnpm workspace 和 Turborepo 初始化
+- [Lint-staged、Prettier 和 ESLint 配置踩坑记录](./lint-staged-prettier-eslint-pitfalls.md) - 代码质量工具配置和常见问题
 
 ### 📖 API 文档
 - [API 接口文档](./api-documentation.md) - 所有 API 接口的详细说明
