@@ -16,17 +16,11 @@ class ExceptionHandler {
    * @param customMessage 自定义错误消息（可选）
    * @param context 上下文信息（可选）
    */
-  throw(
-    type: ErrorType,
-    customMessage?: string,
-    context?: Record<string, any>
-  ): never {
+  throw(type: ErrorType, customMessage?: string, context?: Record<string, any>): never {
     const message = customMessage || ErrorMessages[type];
     const code = ErrorHttpStatus[type];
 
-    const fullMessage = context 
-      ? `${message} [${JSON.stringify(context)}]` 
-      : message;
+    const fullMessage = context ? `${message} [${JSON.stringify(context)}]` : message;
 
     // 记录错误日志
     log.error('抛出异常', {
@@ -99,7 +93,9 @@ class ExceptionHandler {
   /**
    * 将 HTTP 状态码转换为 tRPC 错误代码
    */
-  private getTrpcErrorCode(httpCode: number): 'BAD_REQUEST' | 'UNAUTHORIZED' | 'FORBIDDEN' | 'NOT_FOUND' | 'INTERNAL_SERVER_ERROR' {
+  private getTrpcErrorCode(
+    httpCode: number
+  ): 'BAD_REQUEST' | 'UNAUTHORIZED' | 'FORBIDDEN' | 'NOT_FOUND' | 'INTERNAL_SERVER_ERROR' {
     if (httpCode === 400) return 'BAD_REQUEST';
     if (httpCode === 401) return 'UNAUTHORIZED';
     if (httpCode === 403) return 'FORBIDDEN';
@@ -110,18 +106,37 @@ class ExceptionHandler {
 
 export const exception: ExceptionHandler = new ExceptionHandler();
 
-export const throwException = (type: ErrorType, customMessage?: string, context?: Record<string, any>) => {
+export const throwException = (
+  type: ErrorType,
+  customMessage?: string,
+  context?: Record<string, any>
+) => {
   exception.throw(type, customMessage, context);
 };
 
-export const throwIf = (condition: boolean, type: ErrorType, customMessage?: string, context?: Record<string, any>) => {
+export const throwIf = (
+  condition: boolean,
+  type: ErrorType,
+  customMessage?: string,
+  context?: Record<string, any>
+) => {
   exception.throwIf(condition, type, customMessage, context);
 };
 
-export const throwIfNot = (condition: boolean, type: ErrorType, customMessage?: string, context?: Record<string, any>) => {
+export const throwIfNot = (
+  condition: boolean,
+  type: ErrorType,
+  customMessage?: string,
+  context?: Record<string, any>
+) => {
   exception.throwIfNot(condition, type, customMessage, context);
 };
 
-export const throwIfNull = <T>(resource: T | null | undefined, type: ErrorType, customMessage?: string, context?: Record<string, any>) => {
+export const throwIfNull = <T>(
+  resource: T | null | undefined,
+  type: ErrorType,
+  customMessage?: string,
+  context?: Record<string, any>
+) => {
   exception.throwIfNull(resource, type, customMessage, context);
 };

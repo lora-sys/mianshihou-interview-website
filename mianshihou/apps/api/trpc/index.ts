@@ -1,19 +1,20 @@
-import { initTRPC } from "@trpc/server";
-import { CreateFastifyContextOptions } from "@trpc/server/adapters/fastify";
-import { createLogger, log } from "../lib/logger";
-import { db } from "../index";
-import { users } from "../db/schema";
-import { eq } from "drizzle-orm";
-import { auth } from "../lib/auth";
-import { headersFromRequest } from "../lib/cookie-utils";
+import { initTRPC } from '@trpc/server';
+import { CreateFastifyContextOptions } from '@trpc/server/adapters/fastify';
+import { createLogger, log } from '../lib/logger';
+import { db } from '../index';
+import { users } from '../db/schema';
+import { eq } from 'drizzle-orm';
+import { auth } from '../lib/auth';
+import { headersFromRequest } from '../lib/cookie-utils';
 
 type FastifyRequestWithCookies = CreateFastifyContextOptions['req'] & {
   cookies?: Record<string, string>;
 };
 
 export function createContext(opts: CreateFastifyContextOptions) {
-  const requestId = (opts.req.headers['x-request-id'] as string)
-    || `req_${Date.now()}_${Math.random().toString(36).substring(3, 6)}`;
+  const requestId =
+    (opts.req.headers['x-request-id'] as string) ||
+    `req_${Date.now()}_${Math.random().toString(36).substring(3, 6)}`;
 
   const logger = createLogger('request').child({ requestId });
 

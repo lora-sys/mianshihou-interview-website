@@ -1,13 +1,13 @@
-import { betterAuth } from "better-auth";
-import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { db } from "../index";
-import { users, sessions, accounts, verifications } from "../db/schema";
+import { betterAuth } from 'better-auth';
+import { drizzleAdapter } from 'better-auth/adapters/drizzle';
+import { db } from '../index';
+import { users, sessions, accounts, verifications } from '../db/schema';
 
 export const auth = betterAuth({
   baseURL: process.env.BETTER_AUTH_URL || 'http://localhost:3001',
   basePath: '/api/auth',
   database: drizzleAdapter(db, {
-    provider: "pg",
+    provider: 'pg',
     schema: {
       user: users,
       session: sessions,
@@ -21,33 +21,33 @@ export const auth = betterAuth({
   },
   user: {
     fields: {
-      id: "id",
-      email: "email",
-      emailVerified: "emailVerified",
-      name: "userName",
-      image: "userAvatar",
-      createdAt: "createTime",
-      updatedAt: "updateTime",
-      role: "userRole",
-      status: "status",
+      id: 'id',
+      email: 'email',
+      emailVerified: 'emailVerified',
+      name: 'userName',
+      image: 'userAvatar',
+      createdAt: 'createTime',
+      updatedAt: 'updateTime',
+      role: 'userRole',
+      status: 'status',
     },
   },
   advanced: {
-    cookiePrefix: "mianshihou",
-    useSecureCookies: process.env.NODE_ENV === "production",
+    cookiePrefix: 'mianshihou',
+    useSecureCookies: process.env.NODE_ENV === 'production',
     defaultCookieAttributes: {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax" as const,
-      path: "/",
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax' as const,
+      path: '/',
       maxAge: 60 * 60 * 24 * 30,
     },
     database: {
       generateId: true,
     },
     jwt: {
-      expiresIn: "7d",
-      refreshExpiresIn: "30d",
+      expiresIn: '7d',
+      refreshExpiresIn: '30d',
     },
   },
   session: {

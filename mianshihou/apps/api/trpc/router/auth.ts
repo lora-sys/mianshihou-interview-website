@@ -1,10 +1,10 @@
-import { router, publicProcedure } from "../index";
-import { z } from "zod";
-import { auth } from "../../lib/auth";
-import { throwIf, throwIfNull } from "../../lib/exception";
-import { ErrorType } from "../../lib/errors";
-import { log } from "../../lib/logger";
-import { headersFromRequest } from "../../lib/cookie-utils";
+import { router, publicProcedure } from '../index';
+import { z } from 'zod';
+import { auth } from '../../lib/auth';
+import { throwIf, throwIfNull } from '../../lib/exception';
+import { ErrorType } from '../../lib/errors';
+import { log } from '../../lib/logger';
+import { headersFromRequest } from '../../lib/cookie-utils';
 
 export const authRouter = router({
   signUp: publicProcedure
@@ -13,7 +13,7 @@ export const authRouter = router({
         email: z.string().email(),
         password: z.string().min(6),
         name: z.string().min(1).optional(),
-      }),
+      })
     )
     .mutation(async ({ input, ctx }) => {
       log.info('用户注册请求', { email: input.email });
@@ -32,19 +32,19 @@ export const authRouter = router({
 
         log.info('用户注册成功', {
           email: input.email,
-          userId: result.user?.id
+          userId: result.user?.id,
         });
 
         return {
           user: result.user,
-          message: "注册成功",
+          message: '注册成功',
         };
       } catch (error: any) {
         // Better-Auth v1.4+ uses structured error codes
         if (error?.code === 'USER_EXISTS') {
           throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: "该邮箱已被注册",
+            code: 'BAD_REQUEST',
+            message: '该邮箱已被注册',
           });
         }
         throw error;
@@ -56,7 +56,7 @@ export const authRouter = router({
       z.object({
         email: z.string().email(),
         password: z.string(),
-      }),
+      })
     )
     .mutation(async ({ input, ctx }) => {
       log.info('用户登录请求', { email: input.email });
@@ -74,18 +74,18 @@ export const authRouter = router({
 
         log.info('用户登录成功', {
           email: input.email,
-          userId: result.user?.id
+          userId: result.user?.id,
         });
 
         return {
           user: result.user,
-          message: "登录成功",
+          message: '登录成功',
         };
       } catch (error: any) {
         if (error?.status === 401 || error?.message?.includes('Invalid credentials')) {
           throw new TRPCError({
-            code: "UNAUTHORIZED",
-            message: "邮箱或密码错误",
+            code: 'UNAUTHORIZED',
+            message: '邮箱或密码错误',
           });
         }
         throw error;
@@ -103,12 +103,12 @@ export const authRouter = router({
         headers,
       });
 
-      return { success: true, message: "登出成功" };
+      return { success: true, message: '登出成功' };
     } catch (error) {
       log.error('登出失败', error as Error);
       throw new TRPCError({
-        code: "INTERNAL_SERVER_ERROR",
-        message: "登出失败",
+        code: 'INTERNAL_SERVER_ERROR',
+        message: '登出失败',
       });
     }
   }),

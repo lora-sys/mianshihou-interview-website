@@ -10,3 +10,13 @@ if [ $? -ne 0 ]; then
 fi
 
 echo "✅ 单元测试通过"
+
+echo "✨ 检查暂存文件..."
+bunx lint-staged
+
+if [ $? -ne 0 ]; then
+  echo "❌ 代码检查失败，请修复后再提交"
+  exit 1
+fi
+
+echo "✅ 代码检查通过"

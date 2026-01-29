@@ -1,4 +1,4 @@
-import { betterAuthClient } from "better-auth/client";
+import { betterAuthClient } from 'better-auth/client';
 
 export const authClient = betterAuthClient({
   baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000',

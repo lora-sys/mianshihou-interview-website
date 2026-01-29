@@ -1,12 +1,12 @@
-import { TRPCError } from "@trpc/server";
-import { publicProcedure } from "../index";
-import { log } from "../../lib/logger";
+import { TRPCError } from '@trpc/server';
+import { publicProcedure } from '../index';
+import { log } from '../../lib/logger';
 
 const ERROR_MESSAGES = {
-  UNAUTHORIZED: "未授权访问，请先登录",
-  FORBIDDEN: "权限不足",
-  BANNED: "账号已被封禁",
-  INVALID_ROLE: "无效的角色",
+  UNAUTHORIZED: '未授权访问，请先登录',
+  FORBIDDEN: '权限不足',
+  BANNED: '账号已被封禁',
+  INVALID_ROLE: '无效的角色',
 };
 
 // 中间件：验证用户是否已登录
@@ -14,7 +14,7 @@ export const requireAuth = async ({ ctx, next }: any) => {
   if (!ctx.user) {
     log.warn('未授权访问 - 缺少用户信息');
     throw new TRPCError({
-      code: "UNAUTHORIZED",
+      code: 'UNAUTHORIZED',
       message: ERROR_MESSAGES.UNAUTHORIZED,
     });
   }
@@ -26,7 +26,7 @@ export const requireActive = async ({ ctx, next }: any) => {
   if (!ctx.user) {
     log.warn('未授权访问 - 缺少用户信息');
     throw new TRPCError({
-      code: "UNAUTHORIZED",
+      code: 'UNAUTHORIZED',
       message: ERROR_MESSAGES.UNAUTHORIZED,
     });
   }
@@ -34,7 +34,7 @@ export const requireActive = async ({ ctx, next }: any) => {
   if (ctx.user.status !== 'active') {
     log.warn('封禁账号尝试访问', { userId: ctx.user.id, status: ctx.user.status });
     throw new TRPCError({
-      code: "FORBIDDEN",
+      code: 'FORBIDDEN',
       message: ERROR_MESSAGES.BANNED,
     });
   }
@@ -48,7 +48,7 @@ export const requireRole = (role: string) => {
     if (!ctx.user) {
       log.warn('未授权访问 - 缺少用户信息');
       throw new TRPCError({
-        code: "UNAUTHORIZED",
+        code: 'UNAUTHORIZED',
         message: ERROR_MESSAGES.UNAUTHORIZED,
       });
     }
@@ -56,7 +56,7 @@ export const requireRole = (role: string) => {
     if (ctx.user.status !== 'active') {
       log.warn('封禁账号尝试访问', { userId: ctx.user.id, status: ctx.user.status });
       throw new TRPCError({
-        code: "FORBIDDEN",
+        code: 'FORBIDDEN',
         message: ERROR_MESSAGES.BANNED,
       });
     }
@@ -65,10 +65,10 @@ export const requireRole = (role: string) => {
       log.warn('角色权限不足', {
         userId: ctx.user?.id,
         requiredRole: role,
-        userRole: ctx.user?.userRole
+        userRole: ctx.user?.userRole,
       });
       throw new TRPCError({
-        code: "FORBIDDEN",
+        code: 'FORBIDDEN',
         message: ERROR_MESSAGES.INVALID_ROLE,
       });
     }
@@ -87,7 +87,7 @@ export const adminOrOwnerProcedure = async ({ ctx, next }: any) => {
   if (!ctx.user) {
     log.warn('未授权访问 - 缺少用户信息');
     throw new TRPCError({
-      code: "UNAUTHORIZED",
+      code: 'UNAUTHORIZED',
       message: ERROR_MESSAGES.UNAUTHORIZED,
     });
   }
@@ -100,10 +100,10 @@ export const adminOrOwnerProcedure = async ({ ctx, next }: any) => {
     log.warn('管理员或资源所有者权限不足', {
       userId: ctx.user.id,
       requestedOwnerId: ownerId,
-      isAdmin
+      isAdmin,
     });
     throw new TRPCError({
-      code: "FORBIDDEN",
+      code: 'FORBIDDEN',
       message: ERROR_MESSAGES.FORBIDDEN,
     });
   }

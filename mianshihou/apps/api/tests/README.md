@@ -18,31 +18,37 @@ tests/
 ## 运行测试
 
 ### 运行所有测试
+
 ```bash
 bun test
 ```
 
 ### 只运行单元测试
+
 ```bash
 bun test tests/unit
 ```
 
 ### 只运行集成测试
+
 ```bash
 bun test tests/integration
 ```
 
 ### 监听模式（文件变化时自动重新运行）
+
 ```bash
 bun test --watch
 ```
 
 ### 生成覆盖率报告
+
 ```bash
 bun test --coverage
 ```
 
 ### 运行特定测试文件
+
 ```bash
 bun test tests/unit/exception.test.ts
 ```
@@ -54,25 +60,25 @@ bun test tests/unit/exception.test.ts
 单元测试用于测试单个函数、类或模块的功能。
 
 ```typescript
-import { describe, it, expect } from 'bun:test'
-import { throwIfNull } from '../../lib/exception'
-import { ErrorType } from '../../lib/errors'
+import { describe, it, expect } from 'bun:test';
+import { throwIfNull } from '../../lib/exception';
+import { ErrorType } from '../../lib/errors';
 
 describe('Exception Utils', () => {
   describe('throwIfNull', () => {
     it('should throw when value is null', () => {
       expect(() => {
-        throwIfNull(null, ErrorType.USER_NOT_FOUND)
-      }).toThrow('Resource not found')
-    })
+        throwIfNull(null, ErrorType.USER_NOT_FOUND);
+      }).toThrow('Resource not found');
+    });
 
     it('should not throw when value is not null', () => {
       expect(() => {
-        throwIfNull('valid value', ErrorType.USER_NOT_FOUND)
-      }).not.toThrow()
-    })
-  })
-})
+        throwIfNull('valid value', ErrorType.USER_NOT_FOUND);
+      }).not.toThrow();
+    });
+  });
+});
 ```
 
 ### 集成测试示例
@@ -80,34 +86,34 @@ describe('Exception Utils', () => {
 集成测试用于测试多个组件或系统的协作。
 
 ```typescript
-import { describe, it, expect, beforeAll, afterAll } from 'bun:test'
-import Fastify from 'fastify'
-import { auth } from '../../lib/auth'
+import { describe, it, expect, beforeAll, afterAll } from 'bun:test';
+import Fastify from 'fastify';
+import { auth } from '../../lib/auth';
 
 describe('Authentication Integration Tests', () => {
-  let server: Fastify.FastifyInstance
-  let port = 3002
+  let server: Fastify.FastifyInstance;
+  let port = 3002;
 
   beforeAll(async () => {
     // 设置测试服务器
-    server = Fastify({ logger: false })
-    
+    server = Fastify({ logger: false });
+
     // 注册路由
     server.all('/api/auth/*', async (request, reply) => {
       // 处理认证请求
-    })
+    });
 
     // 启动测试服务器
-    await server.listen({ port })
-  })
+    await server.listen({ port });
+  });
 
   afterAll(async () => {
     // 清理测试数据
-    await cleanupTestData()
-    
+    await cleanupTestData();
+
     // 关闭测试服务器
-    await server.close()
-  })
+    await server.close();
+  });
 
   it('should register a new user successfully', async () => {
     const response = await fetch(`http://localhost:${port}/api/auth/sign-up/email`, {
@@ -120,15 +126,15 @@ describe('Authentication Integration Tests', () => {
         password: 'test123456',
         name: 'Test User',
       }),
-    })
+    });
 
-    expect(response.status).toBe(200)
-    
-    const data = await response.json()
-    expect(data.user).toBeDefined()
-    expect(data.user.email).toBe('test@example.com')
-  })
-})
+    expect(response.status).toBe(200);
+
+    const data = await response.json();
+    expect(data.user).toBeDefined();
+    expect(data.user.email).toBe('test@example.com');
+  });
+});
 ```
 
 ## 测试工具
@@ -136,35 +142,35 @@ describe('Authentication Integration Tests', () => {
 ### setup.ts 提供的工具函数
 
 ```typescript
-import { 
-  cleanupTestData, 
-  createTestUser, 
+import {
+  cleanupTestData,
+  createTestUser,
   createTestSession,
   createMockRequest,
   createMockResponse,
-  TestUtils 
-} from '../setup'
+  TestUtils,
+} from '../setup';
 
 // 清理测试数据
-await cleanupTestData()
+await cleanupTestData();
 
 // 创建测试用户
 const user = await createTestUser({
   email: 'test@example.com',
   userName: 'Test User',
-})
+});
 
 // 创建测试会话
-const session = await createTestSession(user.id)
+const session = await createTestSession(user.id);
 
 // 创建模拟请求对象
-const mockRequest = createMockRequest()
+const mockRequest = createMockRequest();
 
 // 创建模拟响应对象
-const mockResponse = createMockResponse()
+const mockResponse = createMockResponse();
 
 // 生成测试邮箱
-const testEmail = TestUtils.generateTestEmail()
+const testEmail = TestUtils.generateTestEmail();
 ```
 
 ## 测试最佳实践
@@ -176,12 +182,12 @@ const testEmail = TestUtils.generateTestEmail()
 
 ```typescript
 // 好的测试名称
-it('should throw error when user is not found', () => {})
-it('should return user data when user exists', () => {})
+it('should throw error when user is not found', () => {});
+it('should return user data when user exists', () => {});
 
 // 不好的测试名称
-it('test user', () => {})
-it('check error', () => {})
+it('test user', () => {});
+it('check error', () => {});
 ```
 
 ### 2. 测试隔离
@@ -194,23 +200,23 @@ it('check error', () => {})
 describe('User Service', () => {
   beforeAll(async () => {
     // 设置测试数据库
-    await setupTestDatabase()
-  })
+    await setupTestDatabase();
+  });
 
   afterAll(async () => {
     // 清理测试数据库
-    await cleanupTestDatabase()
-  })
+    await cleanupTestDatabase();
+  });
 
   beforeEach(async () => {
     // 每个测试前清理数据
-    await cleanupTestData()
-  })
+    await cleanupTestData();
+  });
 
   it('should create user', async () => {
     // 测试代码
-  })
-})
+  });
+});
 ```
 
 ### 3. 使用唯一的测试数据
@@ -219,8 +225,8 @@ describe('User Service', () => {
 - 避免测试之间的数据冲突
 
 ```typescript
-const testEmail = `test-${Date.now()}@example.com`
-const testUserId = `test-user-${Date.now()}`
+const testEmail = `test-${Date.now()}@example.com`;
+const testUserId = `test-user-${Date.now()}`;
 ```
 
 ### 4. 测试边界情况
@@ -232,17 +238,17 @@ const testUserId = `test-user-${Date.now()}`
 ```typescript
 describe('Password Validation', () => {
   it('should accept valid password', () => {
-    expect(validatePassword('ValidPass123')).toBe(true)
-  })
+    expect(validatePassword('ValidPass123')).toBe(true);
+  });
 
   it('should reject password that is too short', () => {
-    expect(validatePassword('12345')).toBe(false)
-  })
+    expect(validatePassword('12345')).toBe(false);
+  });
 
   it('should reject password that is too long', () => {
-    expect(validatePassword('a'.repeat(129))).toBe(false)
-  })
-})
+    expect(validatePassword('a'.repeat(129))).toBe(false);
+  });
+});
 ```
 
 ### 5. 使用 Mock 对象
@@ -251,10 +257,10 @@ describe('Password Validation', () => {
 - 避免在测试中使用真实的数据库或外部 API
 
 ```typescript
-const mockRequest = createMockRequest()
-const mockResponse = createMockResponse()
+const mockRequest = createMockRequest();
+const mockResponse = createMockResponse();
 
-await handler(mockRequest, mockResponse)
+await handler(mockRequest, mockResponse);
 ```
 
 ## 测试覆盖率
@@ -299,7 +305,7 @@ DATABASE_URL=postgres://user:password@localhost:5432/test_db
 如果测试服务器端口冲突，可以修改测试文件中的端口号：
 
 ```typescript
-let port = 3004  // 修改为其他端口
+let port = 3004; // 修改为其他端口
 ```
 
 ## 下一步

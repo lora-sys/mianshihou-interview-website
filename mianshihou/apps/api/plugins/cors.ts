@@ -4,9 +4,9 @@ interface CorsOptions {
   methods?: string[];
   credentials?: boolean;
 }
-export default async function corsPlugin(fastify : any, options: CorsOptions) {
-  const corsOrigin = process.env.CORS_ORIGIN?.split(',') || (options.origin || '*');
-  
+export default async function corsPlugin(fastify: any, options: CorsOptions) {
+  const corsOrigin = process.env.CORS_ORIGIN?.split(',') || options.origin || '*';
+
   fastify.register(fastifyCors, {
     origin: corsOrigin,
     methods: options.methods || ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
