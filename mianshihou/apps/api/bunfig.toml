@@ -1,0 +1,11 @@
+[test]
+# 测试文件匹配模式
+test_match = "**/*.test.ts"
+# 测试文件排除模式
+test_exclude = ["node_modules/**", "dist/**"]
+# 测试超时时间（毫秒）
+timeout = 30000
+# 覆盖率配置
+coverage = true
+coverage_dir = "coverage"
+coverage_exclude = ["node_modules/**", "dist/**", "**/*.test.ts"]

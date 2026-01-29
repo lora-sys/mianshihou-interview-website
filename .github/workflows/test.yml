@@ -1,0 +1,41 @@
+# 简化的 CI 配置 - 只运行测试
+name: Tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+      # 1. 检出代码
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2. 设置 Bun
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+
+      # 3. 安装依赖
+      - name: Install dependencies
+        run: |
+          cd mianshihou/apps/api
+          bun install
+
+      # 4. 运行测试
+      - name: Run tests
+        run: |
+          cd mianshihou/apps/api
+          bun test
+
+      # 5. 上传覆盖率报告
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: mianshihou/apps/api/coverage/
