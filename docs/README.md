@@ -7,7 +7,6 @@
 ### 🚀 快速开始
 - [Husky Git Hooks 指南](./getting-started/husky-guide.md) - Git hooks 管理工具配置和使用
 - [Monorepo 初始化](./getting-started/first.md) - pnpm workspace 和 Turborepo 初始化
-- [Lint-staged、Prettier 和 ESLint 配置踩坑记录](./ci-cd/lint-staged-prettier-eslint-pitfalls.md) - 代码质量工具配置和常见问题
 
 ### 📖 API 文档
 - [API 接口文档](./api-documentation/api-documentation.md) - 所有 API 接口的详细说明
@@ -26,9 +25,42 @@
 ### 🔄 CI/CD 文档
 - [CI/CD 指南](./ci-cd/ci-cd-guide.md) - CI/CD 概念和 GitHub Actions 配置
 - [CI/CD 配置说明](./ci-cd/ci-cd-configuration.md) - 为什么集成测试不在 CI/CD 中运行
+- [Lint-staged、Prettier 和 ESLint 配置踩坑记录](./ci-cd/lint-staged-prettier-eslint-pitfalls.md) - 代码质量工具配置和常见问题
 
 ### 🐛 错误记录
 - [错误日志](./error-log/error-log.md) - 开发过程中遇到的所有错误和解决方案
+
+### 💾 缓存文档
+- [Redis 实现踩坑记录](./caching/redis-implementation.md) - Redis 缓存系统实现过程中的所有问题和解决方案
+  - ioredis 方法命名不一致
+- 空字符串前缀被 falsy 值覆盖
+- 无法区分缓存不存在和缓存值为 null
+- 空值缓存优先级配置错误
+- 缓存中间件无法使用外部缓存实例
+- 双重检查锁中的并发问题
+- 随机 TTL 边界值问题
+- 布隆过滤器误判率问题
+- 熔断器状态转换逻辑错误
+- 限流器算法选择问题
+
+- [缓存防护机制踩坑记录](./caching/cache-protection-pitfalls.md) - 缓存穿透、击穿、雪崩防护机制的实现问题
+  - 缓存穿透防护：无法区分缓存不存在和缓存值为 null
+  - 缓存穿透防护：布隆过滤器误判率问题
+  - 缓存击穿防护：双重检查锁中的并发问题
+  - 缓存击穿防护：锁超时时间设置不当
+  - 缓存击穿防护：热点数据永不过期导致缓存雪崩
+  - 缓存雪崩防护：随机 TTL 范围设置不当
+  - 缓存雪崩防护：熔断器状态转换逻辑错误
+  - 缓存雪崩防护：限流器算法选择不当
+
+- [tRPC 缓存中间件踩坑记录](./caching/trpc-cache-pitfalls.md) - tRPC 缓存中间件的实现问题
+  - 缓存中间件无法识别 tRPC 类型和输入
+  - 缓存键生成时机错误
+  - 缓存失效策略与路由不匹配
+  - 缓存键冲突
+  - 缓存序列化问题
+  - 缓存中间件与 tRPC Context 不兼容
+  - 缓存失效时机错误
   - tRPC 中间件错误
   - Better-Auth 注册错误
   - 类型不匹配问题
@@ -95,12 +127,13 @@
 | 快速开始 | 2 |
 | API 文档 | 1 |
 | 测试文档 | 2 |
-| CI/CD 文档 | 2 |
+| CI/CD 文档 | 3 |
 | 错误记录 | 1 |
 | 数据库文档 | 1 |
 | 架构文档 | 2 |
 | 问题记录 | 1 |
-| **总计** | **12** |
+| 缓存文档 | 3 |
+| **总计** | **16** |
 
 ## 🔍 快速搜索
 
@@ -125,6 +158,11 @@
 
 **错误**
 - [错误日志](./error-log/error-log.md) - 所有错误记录
+
+**缓存**
+- [Redis 实现踩坑记录](./caching/redis-implementation.md) - Redis 缓存系统实现问题
+- [缓存防护机制踩坑记录](./caching/cache-protection-pitfalls.md) - 缓存防护机制实现问题
+- [tRPC 缓存中间件踩坑记录](./caching/trpc-cache-pitfalls.md) - tRPC 缓存中间件实现问题
 
 ## 💡 使用建议
 
