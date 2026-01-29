@@ -75,9 +75,6 @@ jobs:
         run: |
           echo "Waiting for PostgreSQL to be ready..."
           sleep 15
-          cd mianshihou/apps/api
-          echo "Testing database connection..."
-          bun run test-db || echo "Database check completed with warnings"
 
       # 5. 运行数据库迁移
       - name: Run database migration
@@ -93,25 +90,19 @@ jobs:
           bun run db:push
           echo "Database migration completed"
 
-      # 6. 验证数据库表
-      - name: Verify database tables
+      # 6. 初始化测试数据库
+      - name: Initialize test database
         env:
           DATABASE_URL: postgresql://mianshihou:123456@localhost:5432/mianshihou_test
+          BETTER_AUTH_SECRET: test-secret-key-at-least-32-characters-long-for-testing
+          COOKIE_SECRET: test-cookie-secret-at-least-32-characters-long-for-testing
+          BETTER_AUTH_URL: http://localhost:3002
+          NODE_ENV: test
         run: |
           cd mianshihou/apps/api
-          echo "Checking if tables exist..."
-          bun -e "
-          import { db } from './index';
-          import { users, sessions, accounts, verifications } from './db/schema';
-          
-          console.log('Checking tables...');
-          const tables = await db.execute(\`
-            SELECT table_name 
-            FROM information_schema.tables 
-            WHERE table_schema = 'public'
-          \`);
-          console.log('Tables:', tables.rows.map((r: any) => r.table_name));
-          "
+          echo "Initializing test database..."
+          bun run init-test-db
+          echo "Test database initialized"
 
       # 7. 运行集成测试
       - name: Run integration tests

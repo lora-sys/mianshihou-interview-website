@@ -13,6 +13,7 @@
     "test:coverage": "bun test --coverage",
     "build": "tsx",
     "test-db": "bun tsx apps/api/test-db.ts",
+    "init-test-db": "bun tsx scripts/init-test-db.ts",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
