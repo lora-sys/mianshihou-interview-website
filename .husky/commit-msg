@@ -1,0 +1,19 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+commit_msg=$(cat "$1")
+
+if ! echo "$commit_msg" | grep -qE "^(feat|fix|docs|style|refactor|test|chore|perf|ci|build|revert)(\(.+\))?: .{1,}"; then
+  echo "❌ 提交信息格式不正确"
+  echo ""
+  echo "正确格式："
+  echo "  feat: 添加新功能"
+  echo "  fix: 修复 bug"
+  echo "  docs: 更新文档"
+  echo "  test: 添加测试"
+  echo ""
+  echo "更多格式参考：https://www.conventionalcommits.org/"
+  exit 1
+fi
+
+echo "✅ 提交信息格式正确"
