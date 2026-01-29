@@ -50,3 +50,5 @@ mianshiya-next-lora/
 ├── .gitignore
 └── README.md
 ```
+
+![Tests](https://github.com/你的用户名/mianshihou-interview-website/actions/workflows/test.yml/badge.svg)
