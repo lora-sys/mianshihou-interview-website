@@ -5,6 +5,8 @@ import { eq, desc, and, like, sql } from 'drizzle-orm';
 import { db } from '../../index';
 import { throwIfNull, throwIf, throwIfNot } from '../../lib/exception';
 import { ErrorType } from '../../lib/errors';
+import { success, paginate, createPaginationMeta } from '../../lib/response-wrapper';
+import { transformPost, transformPosts } from '../../lib/field-transformer';
 
 export const postRouter = router({
   posts: router({
@@ -35,7 +37,9 @@ export const postRouter = router({
 
           ctx.logger.info({ postId: newPost.id, title: newPost.title }, '帖子创建成功');
 
-          return newPost;
+          // 转换字段命名并包装响应
+          const transformedPost = transformPost(newPost);
+          return success(transformedPost, '帖子创建成功');
         } catch (error) {
           ctx.logger.error({ title: input.title, error }, '创建帖子失败');
           throw error;
@@ -64,7 +68,7 @@ export const postRouter = router({
 
         ctx.logger.info({ postId: deletedPost.id }, '帖子删除成功');
 
-        return { success: true, id: deletedPost.id };
+        return success({ id: deletedPost.id }, '帖子删除成功');
       } catch (error) {
         ctx.logger.error({ postId: input.id, error }, '删除帖子失败');
         throw error;
@@ -110,7 +114,9 @@ export const postRouter = router({
             '帖子更新成功'
           );
 
-          return updatedPost;
+          // 转换字段命名并包装响应
+          const transformedPost = transformPost(updatedPost);
+          return success(transformedPost, '帖子更新成功');
         } catch (error) {
           ctx.logger.error({ postId: input.id, error }, '更新帖子失败');
           throw error;
@@ -132,7 +138,9 @@ export const postRouter = router({
 
       ctx.logger.info({ postId: input.id, title: post.title }, '查询帖子成功');
 
-      return post;
+      // 转换字段命名并包装响应
+      const transformedPost = transformPost(post);
+      return success(transformedPost, '查询帖子成功');
     }),
 
     list: publicProcedure
@@ -180,13 +188,10 @@ export const postRouter = router({
           '查询帖子列表成功'
         );
 
-        return {
-          data,
-          total: totalResult.length,
-          page: input.page,
-          pageSize: input.pageSize,
-          totalPages: Math.ceil(totalResult.length / input.pageSize),
-        };
+        // 转换字段命名并包装分页响应
+        const transformedPosts = transformPosts(data);
+        const pagination = createPaginationMeta(input.page, input.pageSize, totalResult.length);
+        return paginate(transformedPosts, pagination, '查询帖子列表成功');
       }),
 
     updateThumbNum: publicProcedure
@@ -224,7 +229,9 @@ export const postRouter = router({
             '帖子点赞数更新成功'
           );
 
-          return updatedPost;
+          // 转换字段命名并包装响应
+          const transformedPost = transformPost(updatedPost);
+          return success(transformedPost, '点赞数更新成功');
         } catch (error) {
           ctx.logger.error(
             { postId: input.id, increment: input.increment, error },
@@ -269,7 +276,9 @@ export const postRouter = router({
             '帖子收藏数更新成功'
           );
 
-          return updatedPost;
+          // 转换字段命名并包装响应
+          const transformedPost = transformPost(updatedPost);
+          return success(transformedPost, '收藏数更新成功');
         } catch (error) {
           ctx.logger.error(
             { postId: input.id, increment: input.increment, error },
