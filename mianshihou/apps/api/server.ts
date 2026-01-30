@@ -7,6 +7,7 @@ import corsPlugin from './plugins/cors';
 import { log } from './lib/logger';
 import { auth } from './lib/auth';
 import { headersFromRequest } from './lib/cookie-utils';
+import { registerLoggingMiddleware } from './middlewares/logger';
 
 const fastify = Fastify({
   logger:
@@ -17,6 +18,9 @@ const fastify = Fastify({
         }
       : { level: 'info' },
 });
+
+// 注册日志中间件
+registerLoggingMiddleware(fastify);
 
 fastify.register(fastifyCookie, {
   secret: process.env.COOKIE_SECRET || 'your-cookie-secret-change-this',
@@ -78,16 +82,53 @@ fastify.register(fastifyTRPCPlugin, {
 });
 
 fastify.setErrorHandler((error: any, request, reply) => {
-  log.error('请求错误', { error: error.message, stack: error.stack, url: request.url });
-  reply.status(error.statusCode || 500).send({
+  // 判断是否为 Zod 验证错误
+  const isZodError = error.name === 'ZodError' && error.errors;
+
+  // 构建错误响应
+  const errorResponse: any = {
     success: false,
     error: {
-      message: error.message,
+      message: error.message || '服务器内部错误',
       code: error.code || 'INTERNAL_SERVER_ERROR',
-      ...(process.env.NODE_ENV === 'development' && { stack: error.stack }),
     },
-  });
+  };
+
+  // 处理 Zod 验证错误
+  if (isZodError) {
+    errorResponse.error.code = 'VALIDATION_ERROR';
+    errorResponse.error.message = '参数验证失败';
+    errorResponse.error.validationErrors = error.errors.map((e: any) => ({
+      path: e.path.length > 0 ? e.path.join('.') : 'root',
+      message: e.message,
+    }));
+    reply.status(400);
+  } else {
+    // 设置状态码
+    const statusCode = error.statusCode || (error.code && getStatusCodeFromCode(error.code)) || 500;
+    reply.status(statusCode);
+  }
+
+  // 开发环境添加堆栈信息
+  if (process.env.NODE_ENV === 'development') {
+    errorResponse.error.stack = error.stack;
+  }
+
+  // 记录错误日志（已在中间件中记录，这里不再重复）
+  reply.send(errorResponse);
 });
+
+// 根据 tRPC 错误代码获取 HTTP 状态码
+function getStatusCodeFromCode(code: string): number {
+  const codeMap: Record<string, number> = {
+    BAD_REQUEST: 400,
+    UNAUTHORIZED: 401,
+    FORBIDDEN: 403,
+    NOT_FOUND: 404,
+    INTERNAL_SERVER_ERROR: 500,
+  };
+  return codeMap[code] || 500;
+}
 
 const start = async () => {
   try {

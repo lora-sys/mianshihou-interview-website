@@ -1,10 +1,14 @@
 import { router, publicProcedure } from '../index';
 import { z } from 'zod';
+import { TRPCError } from '@trpc/server';
 import { auth } from '../../lib/auth';
 import { throwIf, throwIfNull } from '../../lib/exception';
 import { ErrorType } from '../../lib/errors';
 import { log } from '../../lib/logger';
 import { headersFromRequest } from '../../lib/cookie-utils';
+import { success } from '../../lib/response-wrapper';
+import { sanitizeUser, transformUser } from '../../lib/data-sanitizer';
+import { transformUser as transformUserField } from '../../lib/field-transformer';
 
 export const authRouter = router({
   signUp: publicProcedure
@@ -35,10 +39,11 @@ export const authRouter = router({
           userId: result.user?.id,
         });
 
-        return {
-          user: result.user,
-          message: '注册成功',
-        };
+        // 脱敏和转换用户数据
+        const transformedUser = transformUserField(sanitizeUser(result.user));
+
+        // 包装响应
+        return success(transformedUser, '注册成功');
       } catch (error: any) {
         // Better-Auth v1.4+ uses structured error codes
         if (error?.code === 'USER_EXISTS') {
@@ -77,10 +82,11 @@ export const authRouter = router({
           userId: result.user?.id,
         });
 
-        return {
-          user: result.user,
-          message: '登录成功',
-        };
+        // 脱敏和转换用户数据
+        const transformedUser = transformUserField(sanitizeUser(result.user));
+
+        // 包装响应
+        return success(transformedUser, '登录成功');
       } catch (error: any) {
         if (error?.status === 401 || error?.message?.includes('Invalid credentials')) {
           throw new TRPCError({
@@ -103,7 +109,7 @@ export const authRouter = router({
         headers,
       });
 
-      return { success: true, message: '登出成功' };
+      return success(null, '登出成功');
     } catch (error) {
       log.error('登出失败', error as Error);
       throw new TRPCError({
@@ -116,22 +122,33 @@ export const authRouter = router({
   getSession: publicProcedure.query(async ({ ctx }) => {
     log.debug('获取会话信息', { userId: ctx.user?.id });
 
-    return {
-      user: ctx.user,
-      session: ctx.session,
-    };
+    // 脱敏会话数据
+    const sanitizedSession = ctx.session
+      ? {
+          ...ctx.session,
+          token: undefined, // 不返回令牌
+        }
+      : null;
+
+    return success(
+      {
+        user: ctx.user,
+        session: sanitizedSession,
+      },
+      '获取会话成功'
+    );
   }),
 
   me: publicProcedure.query(async ({ ctx }) => {
     log.debug('获取用户资料', { userId: ctx.user?.id });
 
-    return {
-      id: ctx.user?.id,
-      email: ctx.user?.email,
-      userName: ctx.user?.userName,
-      userAvatar: ctx.user?.userAvatar,
-      userRole: ctx.user?.userRole,
-      status: ctx.user?.status,
-    };
+    if (!ctx.user) {
+      return success(null, '未登录');
+    }
+
+    // 脱敏和转换用户数据
+    const transformedUser = transformUserField(sanitizeUser(ctx.user));
+
+    return success(transformedUser, '获取用户资料成功');
   }),
 });

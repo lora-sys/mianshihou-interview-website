@@ -9,6 +9,29 @@ const ERROR_MESSAGES = {
   INVALID_ROLE: '无效的角色',
 };
 
+/**
+ * 检查用户是否是资源所有者
+ */
+export function isOwner(user: any, resource: any): boolean {
+  if (!user || !resource) return false;
+  return user.id === resource.userId || user.id === resource.id;
+}
+
+/**
+ * 检查用户是否拥有指定角色
+ */
+export function hasRole(user: any, role: string): boolean {
+  if (!user) return false;
+  return user.userRole === role || user.role === role;
+}
+
+/**
+ * 检查用户是否是管理员
+ */
+export function isAdmin(user: any): boolean {
+  return hasRole(user, 'admin');
+}
+
 // 中间件：验证用户是否已登录
 export const requireAuth = async ({ ctx, next }: any) => {
   if (!ctx.user) {

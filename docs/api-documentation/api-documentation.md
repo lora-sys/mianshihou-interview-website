@@ -7,6 +7,70 @@
 - **Content-Type**: `application/json`
 - **API 前缀**: `/trpc`
 
+## 响应格式说明
+
+### tRPC 响应格式
+
+所有 tRPC 接口返回统一的格式：
+
+```json
+{
+  "result": {
+    "data": {
+      // 实际数据
+    }
+  }
+}
+```
+
+### 错误响应格式（已统一）
+
+所有错误现在都返回统一的格式：
+
+```json
+{
+  "success": false,
+  "error": {
+    "message": "错误信息",
+    "code": "错误代码",
+    "stack": "堆栈信息（仅开发环境）"
+  }
+}
+```
+
+#### Zod 验证错误格式
+
+```json
+{
+  "success": false,
+  "error": {
+    "message": "参数验证失败",
+    "code": "VALIDATION_ERROR",
+    "validationErrors": [
+      { "path": "email", "message": "Invalid email format" },
+      { "path": "password", "message": "Password too short" }
+    ]
+  }
+}
+```
+
+#### 常见错误代码
+
+| 错误代码 | HTTP 状态码 | 描述 |
+|---------|------------|------|
+| `BAD_REQUEST` | 400 | 请求参数错误 |
+| `VALIDATION_ERROR` | 400 | 参数验证失败（Zod） |
+| `UNAUTHORIZED` | 401 | 未授权访问 |
+| `FORBIDDEN` | 403 | 权限不足 |
+| `NOT_FOUND` | 404 | 资源不存在 |
+| `RESOURCE_NOT_FOUND` | 404 | 资源不存在 |
+| `DUPLICATE_OPERATION` | 409 | 重复操作 |
+| `INTERNAL_SERVER_ERROR` | 500 | 服务器内部错误 |
+
+详细错误处理说明请参考 [错误处理改进文档](../错误处理改进.md)
+
+---
+
 ## 认证说明
 
 本系统使用 Better-Auth 进行用户认证，支持邮箱密码登录/注册。
@@ -1491,15 +1555,11 @@ curl -X GET 'http://localhost:3001/trpc/hello?name=World'
 
 ```json
 {
+  "success": false,
   "error": {
     "message": "错误描述",
-    "code": -32001,
-    "data": {
-      "code": "ERROR_CODE",
-      "httpStatus": 400,
-      "stack": "错误堆栈信息（仅开发环境）"
-    },
-    "success": false
+    "code": "ERROR_CODE",
+    "stack": "错误堆栈信息（仅开发环境）"
   }
 }
 ```
@@ -1507,11 +1567,54 @@ curl -X GET 'http://localhost:3001/trpc/hello?name=World'
 ### 常见错误码
 
 - `BAD_REQUEST` (400): 请求参数错误
+- `VALIDATION_ERROR` (400): 参数验证失败（Zod）
 - `UNAUTHORIZED` (401): 未授权访问
 - `FORBIDDEN` (403): 权限不足
 - `RESOURCE_NOT_FOUND` (404): 资源不存在
 - `DUPLICATE_OPERATION` (409): 重复操作
 - `INTERNAL_SERVER_ERROR` (500): 服务器内部错误
+
+### Zod 验证错误示例
+
+当请求参数验证失败时，返回详细的验证错误：
+
+```json
+{
+  "success": false,
+  "error": {
+    "message": "参数验证失败",
+    "code": "VALIDATION_ERROR",
+    "validationErrors": [
+      {
+        "path": "email",
+        "message": "Invalid email format"
+      },
+      {
+        "path": "password",
+        "message": "Password too short"
+      }
+    ]
+  }
+}
+```
+
+### 使用错误处理器
+
+在代码中使用全局异常处理器：
+
+```typescript
+import { throwIfNull, throwIf } from './lib/exception';
+import { ErrorType } from './lib/errors';
+
+// 检查资源是否存在
+throwIfNull(user, ErrorType.USER_NOT_FOUND);
+
+// 自定义消息
+throwIfNull(user, ErrorType.USER_NOT_FOUND, '用户不存在', { userId });
+
+// 条件抛出异常
+throwIf(!hasPermission, ErrorType.FORBIDDEN, '无权限访问');
+```
 
 ---
 
@@ -1522,3 +1625,6 @@ curl -X GET 'http://localhost:3001/trpc/hello?name=World'
 3. 删除操作为软删除，不会真正删除数据，只是标记 `isDelete` 为 `true`
 4. 分页接口默认返回第一页，每页 10 条数据
 5. 搜索接口支持模糊匹配
+6. 所有错误响应都使用统一的格式（见上方"错误响应格式说明"）
+7. Zod 验证错误会自动格式化并返回详细的验证错误信息
+8. 开发环境会返回堆栈信息，生产环境会隐藏

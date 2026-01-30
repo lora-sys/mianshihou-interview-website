@@ -6,6 +6,9 @@ import { db } from '../../index';
 import { throwIfNull, throwIf } from '../../lib/exception';
 import { ErrorType } from '../../lib/errors';
 import { adminProcedure, adminOrOwnerProcedure } from '../middleware/permissions';
+import { success, createPaginationMeta } from '../../lib/response-wrapper';
+import { sanitizeUser, sanitizeUsers } from '../../lib/data-sanitizer';
+import { transformUser, transformUsers } from '../../lib/field-transformer';
 
 // 创建 adminOrOwner 的 procedure
 export const adminOrOwner = publicProcedure.use(adminOrOwnerProcedure);
@@ -22,6 +25,18 @@ export const userRouter = router({
     )
     .query(async ({ ctx, input }) => {
       const { page = 1, pageSize = 10, keyword } = input || {};
+
+      // 获取总数
+      let countQuery = db.select({ count: users.id }).from(users).where(eq(users.isDelete, false));
+      if (keyword) {
+        countQuery = db
+          .select({ count: users.id })
+          .from(users)
+          .where(and(eq(users.isDelete, false), like(users.userName, `%${keyword}%`)));
+      }
+      const [{ count }] = await countQuery;
+
+      // 获取用户列表
       let query = db.select().from(users).where(eq(users.isDelete, false));
       if (keyword) {
         query = db
@@ -33,7 +48,21 @@ export const userRouter = router({
         .orderBy(desc(users.createTime))
         .limit(pageSize)
         .offset((page - 1) * pageSize);
-      return allUsers;
+
+      // 脱敏和转换用户数据
+      const sanitizedUsers = sanitizeUsers(allUsers);
+      const transformedUsers = transformUsers(sanitizedUsers);
+
+      // 创建分页元数据
+      const pagination = createPaginationMeta(page, pageSize, count);
+
+      return success(
+        {
+          items: transformedUsers,
+          pagination,
+        },
+        '获取用户列表成功'
+      );
     }),
 
   // Get user by ID - requires admin or owner
@@ -44,7 +73,12 @@ export const userRouter = router({
       .where(and(eq(users.id, input.id), eq(users.isDelete, false)))
       .limit(1);
     throwIfNull(user, ErrorType.USER_NOT_FOUND, undefined, { userId: input.id });
-    return user;
+
+    // 脱敏和转换用户数据
+    const sanitizedUser = sanitizeUser(user);
+    const transformedUser = transformUser(sanitizedUser);
+
+    return success(transformedUser, '获取用户成功');
   }),
 
   // Create user - requires admin
@@ -67,7 +101,12 @@ export const userRouter = router({
         userAccount: input.userAccount,
       });
       const [newUser] = await db.insert(users).values(input).returning();
-      return newUser;
+
+      // 脱敏和转换用户数据（不返回密码）
+      const sanitizedUser = sanitizeUser(newUser);
+      const transformedUser = transformUser(sanitizedUser);
+
+      return success(transformedUser, '创建用户成功');
     }),
 
   // Update user - requires admin or owner
@@ -87,7 +126,12 @@ export const userRouter = router({
         .set({ ...updateData, updateTime: new Date() })
         .where(eq(users.id, id))
         .returning();
-      return updatedUser;
+
+      // 脱敏和转换用户数据
+      const sanitizedUser = sanitizeUser(updatedUser);
+      const transformedUser = transformUser(sanitizedUser);
+
+      return success(transformedUser, '更新用户成功');
     }),
 
   // Delete user - requires admin
@@ -98,6 +142,7 @@ export const userRouter = router({
       .where(eq(users.id, input.id))
       .returning();
     throwIfNull(deletedUser, ErrorType.USER_NOT_FOUND, undefined, { userId: input.id });
-    return { success: true, id: deletedUser.id };
+
+    return success({ id: deletedUser.id }, '删除用户成功');
   }),
 });
