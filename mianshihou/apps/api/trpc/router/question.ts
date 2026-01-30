@@ -5,6 +5,7 @@ import { eq, desc, and, like } from 'drizzle-orm';
 import { db } from '../../index';
 import { throwIfNull, throwIf } from '../../lib/exception';
 import { ErrorType } from '../../lib/errors';
+import { success, paginate, createPaginationMeta } from '../../lib/response-wrapper';
 
 export const questionRouter = router({
   questions: router({
@@ -50,7 +51,7 @@ export const questionRouter = router({
             '题目创建成功'
           );
 
-          return newQuestion;
+          return success(newQuestion, '题目创建成功');
         } catch (error) {
           ctx.logger.error({ title: input.title, error }, '创建题目失败');
           throw error;
@@ -79,7 +80,7 @@ export const questionRouter = router({
 
         ctx.logger.info({ questionId: deletedQuestion.id }, '题目删除成功');
 
-        return { success: true, id: deletedQuestion.id };
+        return success({ id: deletedQuestion.id }, '题目删除成功');
       } catch (error) {
         ctx.logger.error({ questionId: input.id, error }, '删除题目失败');
         throw error;
@@ -138,7 +139,7 @@ export const questionRouter = router({
             '题目更新成功'
           );
 
-          return updatedQuestion;
+          return success(updatedQuestion, '题目更新成功');
         } catch (error) {
           ctx.logger.error({ questionId: input.id, error }, '更新题目失败');
           throw error;
@@ -160,7 +161,7 @@ export const questionRouter = router({
 
       ctx.logger.info({ questionId: input.id, title: question.title }, '查询题目成功');
 
-      return question;
+      return success(question, '查询题目成功');
     }),
 
     list: publicProcedure
@@ -213,13 +214,8 @@ export const questionRouter = router({
           '查询题目列表成功'
         );
 
-        return {
-          data,
-          total: totalResult.length,
-          page: input.page,
-          pageSize: input.pageSize,
-          totalPages: Math.ceil(totalResult.length / input.pageSize),
-        };
+        const pagination = createPaginationMeta(input.page, input.pageSize, totalResult.length);
+        return paginate(data, pagination, '查询题目列表成功');
       }),
   }),
 });

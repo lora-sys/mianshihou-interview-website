@@ -5,6 +5,7 @@ import { eq, and } from 'drizzle-orm';
 import { db } from '../../index';
 import { throwIfNull, throwIf } from '../../lib/exception';
 import { ErrorType } from '../../lib/errors';
+import { success } from '../../lib/response-wrapper';
 
 export const postThumbRouter = router({
   postThumbs: router({
@@ -42,7 +43,7 @@ export const postThumbRouter = router({
             '点赞帖子成功'
           );
 
-          return newThumb;
+          return success(newThumb, '点赞成功');
         } catch (error) {
           ctx.logger.error({ postId: input.postId, userId: input.userId, error }, '点赞帖子失败');
           throw error;
@@ -85,7 +86,7 @@ export const postThumbRouter = router({
             '取消点赞成功'
           );
 
-          return { success: true, id: deletedThumb.id };
+          return success({ id: deletedThumb.id }, '取消点赞成功');
         } catch (error) {
           ctx.logger.error({ postId: input.postId, userId: input.userId, error }, '取消点赞失败');
           throw error;
@@ -110,7 +111,7 @@ export const postThumbRouter = router({
           )
           .limit(1);
 
-        return { isLiked: !!thumb };
+        return success({ isLiked: !!thumb }, '检查点赞状态成功');
       }),
 
     getByPostId: publicProcedure
@@ -125,7 +126,7 @@ export const postThumbRouter = router({
 
         ctx.logger.info({ postId: input.postId, count: thumbs.length }, '获取帖子点赞列表成功');
 
-        return thumbs;
+        return success(thumbs, '获取点赞列表成功');
       }),
 
     getByUserId: publicProcedure
@@ -140,7 +141,7 @@ export const postThumbRouter = router({
 
         ctx.logger.info({ userId: input.userId, count: thumbs.length }, '获取用户点赞列表成功');
 
-        return thumbs;
+        return success(thumbs, '获取用户点赞列表成功');
       }),
   }),
 });

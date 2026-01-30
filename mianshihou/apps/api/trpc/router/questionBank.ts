@@ -5,6 +5,7 @@ import { eq, desc, and, like, sql } from 'drizzle-orm';
 import { db } from '../../index';
 import { throwIfNull, throwIf, throwIfNot } from '../../lib/exception';
 import { ErrorType } from '../../lib/errors';
+import { success, paginate, createPaginationMeta } from '../../lib/response-wrapper';
 
 export const questionBankRouter = router({
   questionBanks: router({
@@ -36,7 +37,7 @@ export const questionBankRouter = router({
             '题库创建成功'
           );
 
-          return newQuestionBank;
+          return success(newQuestionBank, '题库创建成功');
         } catch (error) {
           ctx.logger.error({ title: input.title, error }, '创建题库失败');
           throw error;
@@ -65,7 +66,7 @@ export const questionBankRouter = router({
 
         ctx.logger.info({ questionBankId: deletedQuestionBank.id }, '题库删除成功');
 
-        return { success: true, id: deletedQuestionBank.id };
+        return success({ id: deletedQuestionBank.id }, '题库删除成功');
       } catch (error) {
         ctx.logger.error({ questionBankId: input.id, error }, '删除题库失败');
         throw error;
@@ -111,7 +112,7 @@ export const questionBankRouter = router({
             '题库更新成功'
           );
 
-          return updatedQuestionBank;
+          return success(updatedQuestionBank, '题库更新成功');
         } catch (error) {
           ctx.logger.error({ questionBankId: input.id, error }, '更新题库失败');
           throw error;
@@ -133,7 +134,7 @@ export const questionBankRouter = router({
 
       ctx.logger.info({ questionBankId: input.id, title: questionBank.title }, '查询题库成功');
 
-      return questionBank;
+      return success(questionBank, '查询题库成功');
     }),
 
     list: publicProcedure
@@ -177,13 +178,8 @@ export const questionBankRouter = router({
           '查询题库列表成功'
         );
 
-        return {
-          data,
-          total: totalResult.length,
-          page: input.page,
-          pageSize: input.pageSize,
-          totalPages: Math.ceil(totalResult.length / input.pageSize),
-        };
+        const pagination = createPaginationMeta(input.page, input.pageSize, totalResult.length);
+        return paginate(data, pagination, '查询题库列表成功');
       }),
 
     addQuestion: publicProcedure
@@ -267,7 +263,7 @@ export const questionBankRouter = router({
             '题目添加到题库成功'
           );
 
-          return newRelation;
+          return success(newRelation, '题目添加到题库成功');
         } catch (error) {
           ctx.logger.error(
             { questionBankId: input.questionBankId, questionId: input.questionId, error },
@@ -332,7 +328,7 @@ export const questionBankRouter = router({
             '从题库移除题目成功'
           );
 
-          return { success: true };
+          return success({}, '从题库移除题目成功');
         } catch (error) {
           ctx.logger.error(
             { questionBankId: input.questionBankId, questionId: input.questionId, error },
@@ -379,13 +375,8 @@ export const questionBankRouter = router({
 
         if (questionIds.length === 0) {
           ctx.logger.info({ questionBankId: input.questionBankId }, '题库中没有题目');
-          return {
-            data: [],
-            total: 0,
-            page: input.page,
-            pageSize: input.pageSize,
-            totalPages: 0,
-          };
+          const pagination = createPaginationMeta(input.page, input.pageSize, 0);
+          return paginate([], pagination, '题库中没有题目');
         }
 
         // 获取题目详情
@@ -408,13 +399,8 @@ export const questionBankRouter = router({
           '获取题库的题目列表成功'
         );
 
-        return {
-          data,
-          total: totalResult.length,
-          page: input.page,
-          pageSize: input.pageSize,
-          totalPages: Math.ceil(totalResult.length / input.pageSize),
-        };
+        const pagination = createPaginationMeta(input.page, input.pageSize, totalResult.length);
+        return paginate(data, pagination, '获取题库题目列表成功');
       }),
   }),
 });

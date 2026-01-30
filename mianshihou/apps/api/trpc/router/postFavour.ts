@@ -5,6 +5,7 @@ import { eq, and } from 'drizzle-orm';
 import { db } from '../../index';
 import { throwIfNull, throwIf } from '../../lib/exception';
 import { ErrorType } from '../../lib/errors';
+import { success } from '../../lib/response-wrapper';
 
 export const postFavourRouter = router({
   postFavours: router({
@@ -45,7 +46,7 @@ export const postFavourRouter = router({
             '收藏帖子成功'
           );
 
-          return newFavour;
+          return success(newFavour, '收藏成功');
         } catch (error) {
           ctx.logger.error({ postId: input.postId, userId: input.userId, error }, '收藏帖子失败');
           throw error;
@@ -94,7 +95,7 @@ export const postFavourRouter = router({
             '取消收藏成功'
           );
 
-          return { success: true, id: deletedFavour.id };
+          return success({ id: deletedFavour.id }, '取消收藏成功');
         } catch (error) {
           ctx.logger.error({ postId: input.postId, userId: input.userId, error }, '取消收藏失败');
           throw error;
@@ -119,7 +120,7 @@ export const postFavourRouter = router({
           )
           .limit(1);
 
-        return { isFavoured: !!favour };
+        return success({ isFavoured: !!favour }, '检查收藏状态成功');
       }),
 
     getByPostId: publicProcedure
@@ -134,7 +135,7 @@ export const postFavourRouter = router({
 
         ctx.logger.info({ postId: input.postId, count: favours.length }, '获取帖子收藏列表成功');
 
-        return favours;
+        return success(favours, '获取收藏列表成功');
       }),
 
     getByUserId: publicProcedure
@@ -149,7 +150,7 @@ export const postFavourRouter = router({
 
         ctx.logger.info({ userId: input.userId, count: favours.length }, '获取用户收藏列表成功');
 
-        return favours;
+        return success(favours, '获取用户收藏列表成功');
       }),
   }),
 });
