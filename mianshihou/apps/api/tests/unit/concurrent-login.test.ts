@@ -9,6 +9,11 @@ import {
 } from '../../lib/concurrent-login';
 
 const TEST_USER_ID = 'test-user-concurrent-login-123';
+let sessionIdCounter = 0;
+
+function generateSessionId(): string {
+  return `session-${Date.now()}-${++sessionIdCounter}`;
+}
 
 describe('Concurrent Login', () => {
   beforeAll(async () => {
@@ -48,7 +53,7 @@ describe('Concurrent Login', () => {
       TEST_USER_ID,
       '192.168.1.1',
       'Mozilla/5.0 Chrome',
-      'session-1',
+      generateSessionId(),
       { maxDevices: 3, onNewLogin: 'kick_oldest' }
     );
 
@@ -62,7 +67,7 @@ describe('Concurrent Login', () => {
       TEST_USER_ID,
       '192.168.1.2',
       'Mozilla/5.0 Firefox',
-      'session-2',
+      generateSessionId(),
       { maxDevices: 3, onNewLogin: 'deny' }
     );
     expect(result2.allowed).toBe(true);
@@ -72,7 +77,7 @@ describe('Concurrent Login', () => {
       TEST_USER_ID,
       '192.168.1.3',
       'Mozilla/5.0 Safari',
-      'session-3',
+      generateSessionId(),
       { maxDevices: 3, onNewLogin: 'deny' }
     );
     expect(result3.allowed).toBe(true);
@@ -83,7 +88,7 @@ describe('Concurrent Login', () => {
       TEST_USER_ID,
       '192.168.1.4',
       'Mozilla/5.0 Edge',
-      'session-4',
+      generateSessionId(),
       { maxDevices: 3, onNewLogin: 'deny' }
     );
 
@@ -97,7 +102,7 @@ describe('Concurrent Login', () => {
       TEST_USER_ID,
       '192.168.1.1',
       'Mozilla/5.0 Chrome',
-      'session-1-2',
+      generateSessionId(),
       { maxDevices: 3, onNewLogin: 'deny' }
     );
 
@@ -109,24 +114,30 @@ describe('Concurrent Login', () => {
     await cleanupUserSessions(TEST_USER_ID, []);
 
     // 添加3个设备
-    await handleConcurrentLogin(TEST_USER_ID, '192.168.1.1', 'Chrome', 's1', {
+    await handleConcurrentLogin(TEST_USER_ID, '192.168.1.1', 'Chrome', generateSessionId(), {
       maxDevices: 3,
       onNewLogin: 'kick_oldest',
     });
-    await handleConcurrentLogin(TEST_USER_ID, '192.168.1.2', 'Firefox', 's2', {
+    await handleConcurrentLogin(TEST_USER_ID, '192.168.1.2', 'Firefox', generateSessionId(), {
       maxDevices: 3,
       onNewLogin: 'kick_oldest',
     });
-    await handleConcurrentLogin(TEST_USER_ID, '192.168.1.3', 'Safari', 's3', {
+    await handleConcurrentLogin(TEST_USER_ID, '192.168.1.3', 'Safari', generateSessionId(), {
       maxDevices: 3,
       onNewLogin: 'kick_oldest',
     });
 
     // 添加第4个设备，应该踢出最旧的
-    const result = await handleConcurrentLogin(TEST_USER_ID, '192.168.1.4', 'Edge', 's4', {
-      maxDevices: 3,
-      onNewLogin: 'kick_oldest',
-    });
+    const result = await handleConcurrentLogin(
+      TEST_USER_ID,
+      '192.168.1.4',
+      'Edge',
+      generateSessionId(),
+      {
+        maxDevices: 3,
+        onNewLogin: 'kick_oldest',
+      }
+    );
 
     expect(result.allowed).toBe(true);
 
@@ -156,7 +167,7 @@ describe('Concurrent Login', () => {
         TEST_USER_ID,
         '192.168.1.99',
         'TestBrowser',
-        'session-revoke-test',
+        generateSessionId(),
         { maxDevices: 3, onNewLogin: 'allow' }
       );
     }
@@ -173,11 +184,11 @@ describe('Concurrent Login', () => {
 
   test('应该能够踢出所有设备', async () => {
     // 添加一些设备
-    await handleConcurrentLogin(TEST_USER_ID, '10.0.0.1', 'Chrome', 's10', {
+    await handleConcurrentLogin(TEST_USER_ID, '10.0.0.1', 'Chrome', generateSessionId(), {
       maxDevices: 3,
       onNewLogin: 'allow',
     });
-    await handleConcurrentLogin(TEST_USER_ID, '10.0.0.2', 'Firefox', 's11', {
+    await handleConcurrentLogin(TEST_USER_ID, '10.0.0.2', 'Firefox', generateSessionId(), {
       maxDevices: 3,
       onNewLogin: 'allow',
     });
@@ -192,17 +203,20 @@ describe('Concurrent Login', () => {
 
   test('cleanupUserSessions 应该移除过期会话', async () => {
     // 添加一些设备
-    await handleConcurrentLogin(TEST_USER_ID, '20.0.0.1', 'Chrome', 'active-session-1', {
+    const activeSessionId = generateSessionId();
+    const expiredSessionId = generateSessionId();
+
+    await handleConcurrentLogin(TEST_USER_ID, '20.0.0.1', 'Chrome', activeSessionId, {
       maxDevices: 3,
       onNewLogin: 'allow',
     });
-    await handleConcurrentLogin(TEST_USER_ID, '20.0.0.2', 'Firefox', 'expired-session-1', {
+    await handleConcurrentLogin(TEST_USER_ID, '20.0.0.2', 'Firefox', expiredSessionId, {
       maxDevices: 3,
       onNewLogin: 'allow',
     });
 
-    // 清理，只保留 active-session-1
-    await cleanupUserSessions(TEST_USER_ID, ['active-session-1']);
+    // 清理，只保留 active-session
+    await cleanupUserSessions(TEST_USER_ID, [activeSessionId]);
 
     const devices = await getUserActiveDevices(TEST_USER_ID);
     // 第二个设备应该被移除，因为没有活跃会话
@@ -220,7 +234,7 @@ describe('Concurrent Login', () => {
         TEST_USER_ID,
         `30.0.0.${i}`,
         `Browser${i}`,
-        `session-allow-${i}`,
+        generateSessionId(),
         { maxDevices: 3, onNewLogin: 'allow' }
       );
       results.push(result);
@@ -244,13 +258,10 @@ describe('Concurrent Login', () => {
     const promises = [];
     for (let i = 0; i < 5; i++) {
       promises.push(
-        handleConcurrentLogin(
-          TEST_USER_ID,
-          `40.0.0.${i}`,
-          `Concurrent${i}`,
-          `session-concurrent-${i}`,
-          { maxDevices: 3, onNewLogin: 'deny' }
-        )
+        handleConcurrentLogin(TEST_USER_ID, `40.0.0.${i}`, `Concurrent${i}`, generateSessionId(), {
+          maxDevices: 3,
+          onNewLogin: 'deny',
+        })
       );
     }
 
