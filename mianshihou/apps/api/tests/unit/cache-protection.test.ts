@@ -17,18 +17,25 @@ describe('Cache Protection', () => {
         lazyConnect: false,
       });
 
-      // 等待连接就绪
-      await new Promise<void>((resolve) => {
-        redis.on('ready', () => {
-          console.log('Redis client ready for cache protection tests');
-          resolve();
-        });
-
-        // 如果已经连接，立即resolve
-        if (redis.status === 'ready') {
-          resolve();
-        }
-      });
+      // 等待连接就绪，最多等待3秒
+      await Promise.race([
+        new Promise<void>((resolve) => {
+          redis.on('ready', () => {
+            console.log('Redis client ready for cache protection tests');
+            resolve();
+          });
+        }),
+        new Promise<void>((resolve) =>
+          setTimeout(() => {
+            if (redis.status === 'ready') {
+              resolve();
+            }
+            // 超时处理：检查连接状态
+            console.log('Redis connection timeout, checking status:', redis.status);
+            resolve();
+          }, 3000)
+        ),
+      ]);
 
       // 清空测试数据库
       await redis.flushdb();
