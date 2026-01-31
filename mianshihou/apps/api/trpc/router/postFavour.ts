@@ -20,33 +20,55 @@ export const postFavourRouter = router({
         ctx.logger.info({ postId: input.postId, userId: input.userId }, '收藏帖子开始');
 
         try {
-          const [existingFavour] = await db
-            .select()
-            .from(postFavours)
-            .where(
-              and(
-                eq(postFavours.postId, BigInt(input.postId)),
-                eq(postFavours.userId, input.userId)
-              )
-            )
-            .limit(1);
+          const { withTransaction } = await import('../../lib/transaction');
+          const { posts } = await import('../../db/schema');
+          const { sql } = await import('drizzle-orm');
 
-          throwIf(!!existingFavour, ErrorType.DUPLICATE_OPERATION, '已经收藏过了');
+          const result = await withTransaction(
+            async ({ tx }) => {
+              // 检查是否已收藏
+              const [existingFavour] = await tx
+                .select()
+                .from(postFavours)
+                .where(
+                  and(
+                    eq(postFavours.postId, BigInt(input.postId)),
+                    eq(postFavours.userId, input.userId)
+                  )
+                )
+                .limit(1);
 
-          const [newFavour] = await db
-            .insert(postFavours)
-            .values({
-              postId: BigInt(input.postId),
-              userId: input.userId,
-            })
-            .returning();
+              throwIf(!!existingFavour, ErrorType.DUPLICATE_OPERATION, '已经收藏过了');
+
+              // 添加收藏记录
+              const [newFavour] = await tx
+                .insert(postFavours)
+                .values({
+                  postId: BigInt(input.postId),
+                  userId: input.userId,
+                })
+                .returning();
+
+              // 更新帖子收藏数
+              await tx
+                .update(posts)
+                .set({
+                  favourNum: sql`${posts.favourNum} + 1`,
+                  updateTime: new Date(),
+                })
+                .where(eq(posts.id, BigInt(input.postId)));
+
+              return newFavour;
+            },
+            { logger: ctx.logger, operationName: 'createPostFavour' }
+          );
 
           ctx.logger.info(
-            { favourId: newFavour.id, postId: input.postId, userId: input.userId },
+            { favourId: result.id, postId: input.postId, userId: input.userId },
             '收藏帖子成功'
           );
 
-          return success(newFavour, '收藏成功');
+          return success(result, '收藏成功');
         } catch (error) {
           ctx.logger.error({ postId: input.postId, userId: input.userId, error }, '收藏帖子失败');
           throw error;
@@ -64,38 +86,60 @@ export const postFavourRouter = router({
         ctx.logger.info({ postId: input.postId, userId: input.userId }, '取消收藏开始');
 
         try {
-          const [favour] = await db
-            .select()
-            .from(postFavours)
-            .where(
-              and(
-                eq(postFavours.postId, BigInt(input.postId)),
-                eq(postFavours.userId, input.userId)
-              )
-            )
-            .limit(1);
+          const { withTransaction } = await import('../../lib/transaction');
+          const { posts } = await import('../../db/schema');
+          const { sql } = await import('drizzle-orm');
 
-          throwIfNull(favour, ErrorType.RESOURCE_NOT_FOUND, undefined, {
-            postId: input.postId,
-            userId: input.userId,
-          });
+          const result = await withTransaction(
+            async ({ tx }) => {
+              // 检查收藏记录是否存在
+              const [favour] = await tx
+                .select()
+                .from(postFavours)
+                .where(
+                  and(
+                    eq(postFavours.postId, BigInt(input.postId)),
+                    eq(postFavours.userId, input.userId)
+                  )
+                )
+                .limit(1);
 
-          const [deletedFavour] = await db
-            .delete(postFavours)
-            .where(
-              and(
-                eq(postFavours.postId, BigInt(input.postId)),
-                eq(postFavours.userId, input.userId)
-              )
-            )
-            .returning();
+              throwIfNull(favour, ErrorType.RESOURCE_NOT_FOUND, undefined, {
+                postId: input.postId,
+                userId: input.userId,
+              });
+
+              // 删除收藏记录
+              const [deletedFavour] = await tx
+                .delete(postFavours)
+                .where(
+                  and(
+                    eq(postFavours.postId, BigInt(input.postId)),
+                    eq(postFavours.userId, input.userId)
+                  )
+                )
+                .returning();
+
+              // 更新帖子收藏数
+              await tx
+                .update(posts)
+                .set({
+                  favourNum: sql`${posts.favourNum} - 1`,
+                  updateTime: new Date(),
+                })
+                .where(eq(posts.id, BigInt(input.postId)));
+
+              return deletedFavour;
+            },
+            { logger: ctx.logger, operationName: 'deletePostFavour' }
+          );
 
           ctx.logger.info(
-            { favourId: deletedFavour.id, postId: input.postId, userId: input.userId },
+            { favourId: result.id, postId: input.postId, userId: input.userId },
             '取消收藏成功'
           );
 
-          return success({ id: deletedFavour.id }, '取消收藏成功');
+          return success({ id: result.id }, '取消收藏成功');
         } catch (error) {
           ctx.logger.error({ postId: input.postId, userId: input.userId, error }, '取消收藏失败');
           throw error;

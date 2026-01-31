@@ -8,6 +8,7 @@ import { log } from './lib/logger';
 import { auth } from './lib/auth';
 import { headersFromRequest } from './lib/cookie-utils';
 import { registerLoggingMiddleware } from './middlewares/logger';
+import { getRedisManager } from './lib/redis';
 
 const fastify = Fastify({
   logger:
@@ -132,10 +133,21 @@ function getStatusCodeFromCode(code: string): number {
 
 const start = async () => {
   try {
+    // 检查Redis连接
+    fastify.log.info('Checking Redis connection...');
+    const redisManager = getRedisManager();
+    const redisHealthy = await redisManager.healthCheck();
+
+    if (!redisHealthy) {
+      throw new Error('Redis is not available. Please check Redis configuration.');
+    }
+
+    fastify.log.info('✅ Redis connection is healthy');
+
     const port = parseInt(process.env.PORT || '3001', 10);
     const host = process.env.HOST || '0.0.0.0';
     await fastify.listen({ port, host });
-    fastify.log.info(`Server listening on http://${host}:${port}`);
+    fastify.log.info(`🚀 Server listening on http://${host}:${port}`);
   } catch (err) {
     fastify.log.error(err);
     process.exit(1);

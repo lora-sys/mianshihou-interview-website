@@ -20,30 +20,55 @@ export const postThumbRouter = router({
         ctx.logger.info({ postId: input.postId, userId: input.userId }, '点赞帖子开始');
 
         try {
-          const [existingThumb] = await db
-            .select()
-            .from(postThumbs)
-            .where(
-              and(eq(postThumbs.postId, BigInt(input.postId)), eq(postThumbs.userId, input.userId))
-            )
-            .limit(1);
+          const { withTransaction } = await import('../../lib/transaction');
+          const { posts } = await import('../../db/schema');
+          const { sql } = await import('drizzle-orm');
 
-          throwIf(!!existingThumb, ErrorType.DUPLICATE_OPERATION, '已经点赞过了');
+          const result = await withTransaction(
+            async ({ tx }) => {
+              // 检查是否已点赞
+              const [existingThumb] = await tx
+                .select()
+                .from(postThumbs)
+                .where(
+                  and(
+                    eq(postThumbs.postId, BigInt(input.postId)),
+                    eq(postThumbs.userId, input.userId)
+                  )
+                )
+                .limit(1);
 
-          const [newThumb] = await db
-            .insert(postThumbs)
-            .values({
-              postId: BigInt(input.postId),
-              userId: input.userId,
-            })
-            .returning();
+              throwIf(!!existingThumb, ErrorType.DUPLICATE_OPERATION, '已经点赞过了');
+
+              // 添加点赞记录
+              const [newThumb] = await tx
+                .insert(postThumbs)
+                .values({
+                  postId: BigInt(input.postId),
+                  userId: input.userId,
+                })
+                .returning();
+
+              // 更新帖子点赞数
+              await tx
+                .update(posts)
+                .set({
+                  thumbNum: sql`${posts.thumbNum} + 1`,
+                  updateTime: new Date(),
+                })
+                .where(eq(posts.id, BigInt(input.postId)));
+
+              return newThumb;
+            },
+            { logger: ctx.logger, operationName: 'createPostThumb' }
+          );
 
           ctx.logger.info(
-            { thumbId: newThumb.id, postId: input.postId, userId: input.userId },
+            { thumbId: result.id, postId: input.postId, userId: input.userId },
             '点赞帖子成功'
           );
 
-          return success(newThumb, '点赞成功');
+          return success(result, '点赞成功');
         } catch (error) {
           ctx.logger.error({ postId: input.postId, userId: input.userId, error }, '点赞帖子失败');
           throw error;
@@ -61,32 +86,60 @@ export const postThumbRouter = router({
         ctx.logger.info({ postId: input.postId, userId: input.userId }, '取消点赞开始');
 
         try {
-          const [thumb] = await db
-            .select()
-            .from(postThumbs)
-            .where(
-              and(eq(postThumbs.postId, BigInt(input.postId)), eq(postThumbs.userId, input.userId))
-            )
-            .limit(1);
+          const { withTransaction } = await import('../../lib/transaction');
+          const { posts } = await import('../../db/schema');
+          const { sql } = await import('drizzle-orm');
 
-          throwIfNull(thumb, ErrorType.RESOURCE_NOT_FOUND, undefined, {
-            postId: input.postId,
-            userId: input.userId,
-          });
+          const result = await withTransaction(
+            async ({ tx }) => {
+              // 检查点赞记录是否存在
+              const [thumb] = await tx
+                .select()
+                .from(postThumbs)
+                .where(
+                  and(
+                    eq(postThumbs.postId, BigInt(input.postId)),
+                    eq(postThumbs.userId, input.userId)
+                  )
+                )
+                .limit(1);
 
-          const [deletedThumb] = await db
-            .delete(postThumbs)
-            .where(
-              and(eq(postThumbs.postId, BigInt(input.postId)), eq(postThumbs.userId, input.userId))
-            )
-            .returning();
+              throwIfNull(thumb, ErrorType.RESOURCE_NOT_FOUND, undefined, {
+                postId: input.postId,
+                userId: input.userId,
+              });
+
+              // 删除点赞记录
+              const [deletedThumb] = await tx
+                .delete(postThumbs)
+                .where(
+                  and(
+                    eq(postThumbs.postId, BigInt(input.postId)),
+                    eq(postThumbs.userId, input.userId)
+                  )
+                )
+                .returning();
+
+              // 更新帖子点赞数
+              await tx
+                .update(posts)
+                .set({
+                  thumbNum: sql`${posts.thumbNum} - 1`,
+                  updateTime: new Date(),
+                })
+                .where(eq(posts.id, BigInt(input.postId)));
+
+              return deletedThumb;
+            },
+            { logger: ctx.logger, operationName: 'deletePostThumb' }
+          );
 
           ctx.logger.info(
-            { thumbId: deletedThumb.id, postId: input.postId, userId: input.userId },
+            { thumbId: result.id, postId: input.postId, userId: input.userId },
             '取消点赞成功'
           );
 
-          return success({ id: deletedThumb.id }, '取消点赞成功');
+          return success({ id: result.id }, '取消点赞成功');
         } catch (error) {
           ctx.logger.error({ postId: input.postId, userId: input.userId, error }, '取消点赞失败');
           throw error;

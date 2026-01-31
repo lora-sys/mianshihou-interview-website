@@ -201,69 +201,78 @@ export const questionBankRouter = router({
         );
 
         try {
-          // 检查题库是否存在
-          const [questionBank] = await db
-            .select()
-            .from(questionBanks)
-            .where(
-              and(eq(questionBanks.id, input.questionBankId), eq(questionBanks.isDelete, false))
-            )
-            .limit(1);
+          const { withTransaction } = await import('../../lib/transaction');
 
-          throwIfNull(questionBank, ErrorType.RESOURCE_NOT_FOUND, undefined, {
-            questionBankId: input.questionBankId,
-          });
+          const result = await withTransaction(
+            async ({ tx }) => {
+              // 检查题库是否存在
+              const [questionBank] = await tx
+                .select()
+                .from(questionBanks)
+                .where(
+                  and(eq(questionBanks.id, input.questionBankId), eq(questionBanks.isDelete, false))
+                )
+                .limit(1);
 
-          // 检查题目是否存在
-          const [question] = await db
-            .select()
-            .from(questions)
-            .where(and(eq(questions.id, input.questionId), eq(questions.isDelete, false)))
-            .limit(1);
+              throwIfNull(questionBank, ErrorType.RESOURCE_NOT_FOUND, undefined, {
+                questionBankId: input.questionBankId,
+              });
 
-          throwIfNull(question, ErrorType.RESOURCE_NOT_FOUND, undefined, {
-            questionId: input.questionId,
-          });
+              // 检查题目是否存在
+              const [question] = await tx
+                .select()
+                .from(questions)
+                .where(and(eq(questions.id, input.questionId), eq(questions.isDelete, false)))
+                .limit(1);
 
-          // 检查是否已经关联
-          const [existingRelation] = await db
-            .select()
-            .from(questionBankQuestions)
-            .where(
-              and(
-                eq(questionBankQuestions.questionBankId, input.questionBankId),
-                eq(questionBankQuestions.questionId, input.questionId)
-              )
-            )
-            .limit(1);
+              throwIfNull(question, ErrorType.RESOURCE_NOT_FOUND, undefined, {
+                questionId: input.questionId,
+              });
 
-          throwIf(!!existingRelation, ErrorType.DUPLICATE_OPERATION, '题目已在该题库中');
+              // 检查是否已经关联
+              const [existingRelation] = await tx
+                .select()
+                .from(questionBankQuestions)
+                .where(
+                  and(
+                    eq(questionBankQuestions.questionBankId, input.questionBankId),
+                    eq(questionBankQuestions.questionId, input.questionId)
+                  )
+                )
+                .limit(1);
 
-          // 添加关联
-          const [newRelation] = await db
-            .insert(questionBankQuestions)
-            .values({
-              questionBankId: input.questionBankId,
-              questionId: input.questionId,
-              userId: input.userId,
-            })
-            .returning();
+              throwIf(!!existingRelation, ErrorType.DUPLICATE_OPERATION, '题目已在该题库中');
 
-          // 更新题库的题目数量
-          await db
-            .update(questionBanks)
-            .set({
-              questionCount: sql`${questionBanks.questionCount} + 1`,
-              updateTime: new Date(),
-            })
-            .where(eq(questionBanks.id, input.questionBankId));
+              // 添加关联
+              const [newRelation] = await tx
+                .insert(questionBankQuestions)
+                .values({
+                  questionBankId: input.questionBankId,
+                  questionId: input.questionId,
+                  userId: input.userId,
+                })
+                .returning();
+
+              // 更新题库的题目数量
+              await tx
+                .update(questionBanks)
+                .set({
+                  questionCount: sql`${questionBanks.questionCount} + 1`,
+                  updateTime: new Date(),
+                })
+                .where(eq(questionBanks.id, input.questionBankId));
+
+              return newRelation;
+            },
+            { logger: ctx.logger, operationName: 'addQuestion' }
+          );
 
           ctx.logger.info(
             { questionBankId: input.questionBankId, questionId: input.questionId },
             '题目添加到题库成功'
           );
 
-          return success(newRelation, '题目添加到题库成功');
+          return success(result, '题目添加到题库成功');
         } catch (error) {
           ctx.logger.error(
             { questionBankId: input.questionBankId, questionId: input.questionId, error },
@@ -287,41 +296,48 @@ export const questionBankRouter = router({
         );
 
         try {
-          // 检查关联是否存在
-          const [relation] = await db
-            .select()
-            .from(questionBankQuestions)
-            .where(
-              and(
-                eq(questionBankQuestions.questionBankId, input.questionBankId),
-                eq(questionBankQuestions.questionId, input.questionId)
-              )
-            )
-            .limit(1);
+          const { withTransaction } = await import('../../lib/transaction');
 
-          throwIfNull(relation, ErrorType.RESOURCE_NOT_FOUND, undefined, {
-            questionBankId: input.questionBankId,
-            questionId: input.questionId,
-          });
+          await withTransaction(
+            async ({ tx }) => {
+              // 检查关联是否存在
+              const [relation] = await tx
+                .select()
+                .from(questionBankQuestions)
+                .where(
+                  and(
+                    eq(questionBankQuestions.questionBankId, input.questionBankId),
+                    eq(questionBankQuestions.questionId, input.questionId)
+                  )
+                )
+                .limit(1);
 
-          // 删除关联
-          await db
-            .delete(questionBankQuestions)
-            .where(
-              and(
-                eq(questionBankQuestions.questionBankId, input.questionBankId),
-                eq(questionBankQuestions.questionId, input.questionId)
-              )
-            );
+              throwIfNull(relation, ErrorType.RESOURCE_NOT_FOUND, undefined, {
+                questionBankId: input.questionBankId,
+                questionId: input.questionId,
+              });
 
-          // 更新题库的题目数量
-          await db
-            .update(questionBanks)
-            .set({
-              questionCount: sql`${questionBanks.questionCount} - 1`,
-              updateTime: new Date(),
-            })
-            .where(eq(questionBanks.id, input.questionBankId));
+              // 删除关联
+              await tx
+                .delete(questionBankQuestions)
+                .where(
+                  and(
+                    eq(questionBankQuestions.questionBankId, input.questionBankId),
+                    eq(questionBankQuestions.questionId, input.questionId)
+                  )
+                );
+
+              // 更新题库的题目数量
+              await tx
+                .update(questionBanks)
+                .set({
+                  questionCount: sql`${questionBanks.questionCount} - 1`,
+                  updateTime: new Date(),
+                })
+                .where(eq(questionBanks.id, input.questionBankId));
+            },
+            { logger: ctx.logger, operationName: 'removeQuestion' }
+          );
 
           ctx.logger.info(
             { questionBankId: input.questionBankId, questionId: input.questionId },
