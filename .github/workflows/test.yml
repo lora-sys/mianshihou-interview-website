@@ -32,6 +32,8 @@ jobs:
       # 2. 设置 Bun
       - name: Setup Bun
         uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: 1.2.21
 
       # 3. 安装依赖
       - name: Install dependencies
@@ -44,9 +46,7 @@ jobs:
         run: |
           cd mianshihou/apps/api
           echo "Bun version: $(bun --version)"
-          echo "Redis connection test..."
-          redis-cli ping || echo "Redis not available on localhost"
-          bun test tests/unit --reporter=verbose
+          bun test tests/unit
 
       # 5. 生成覆盖率报告
       - name: Generate coverage
