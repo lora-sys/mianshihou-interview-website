@@ -9,6 +9,7 @@ import { auth } from './lib/auth';
 import { headersFromRequest } from './lib/cookie-utils';
 import { registerLoggingMiddleware } from './middlewares/logger';
 import { getRedisManager } from './lib/redis';
+import { startCleanupTasks, stopCleanupTasks } from './tasks/cleanup-schedule';
 
 const fastify = Fastify({
   logger:
@@ -144,6 +145,9 @@ const start = async () => {
 
     fastify.log.info('✅ Redis connection is healthy');
 
+    // 启动清理任务
+    startCleanupTasks();
+
     const port = parseInt(process.env.PORT || '3001', 10);
     const host = process.env.HOST || '0.0.0.0';
     await fastify.listen({ port, host });
@@ -156,6 +160,8 @@ const start = async () => {
 
 async function gracefulShutdown(signal: string) {
   fastify.log.info(`Received ${signal}, shutting down gracefully...`);
+  // 停止清理任务
+  stopCleanupTasks();
   await fastify.close();
   process.exit(0);
 }
