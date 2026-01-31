@@ -24,7 +24,8 @@ describe('Cache Utils', () => {
 
   afterAll(async () => {
     await redis.flushdb();
-    await redis.disconnect();
+    // 不要关闭 Redis 连接，因为它是全局共享的
+    // await redis.disconnect();
   });
 
   beforeEach(async () => {

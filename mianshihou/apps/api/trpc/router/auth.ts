@@ -9,6 +9,13 @@ import { headersFromRequest } from '../../lib/cookie-utils';
 import { success } from '../../lib/response-wrapper';
 import { sanitizeUser, transformUser } from '../../lib/data-sanitizer';
 import { transformUser as transformUserField } from '../../lib/field-transformer';
+import {
+  handleConcurrentLogin,
+  getUserActiveDevices,
+  revokeDevice,
+  revokeAllDevices,
+} from '../../lib/concurrent-login';
+import { generateDeviceInfo } from '../../lib/device-fingerprint';
 
 export const authRouter = router({
   signUp: publicProcedure
@@ -77,9 +84,39 @@ export const authRouter = router({
           headers,
         });
 
+        if (!result.user || !result.session) {
+          throw new TRPCError({
+            code: 'UNAUTHORIZED',
+            message: '邮箱或密码错误',
+          });
+        }
+
+        // 获取客户端 IP 和 User-Agent
+        const ip = ctx.req.ip || (ctx.req.headers['x-forwarded-for'] as string) || 'unknown';
+        const userAgent = (ctx.req.headers['user-agent'] as string) || 'unknown';
+
+        // 检查并发登录
+        const concurrentCheck = await handleConcurrentLogin(
+          result.user.id,
+          ip,
+          userAgent,
+          result.session.id
+        );
+
+        if (!concurrentCheck.allowed) {
+          // 登出当前会话
+          await auth.api.signOut({ headers });
+
+          throw new TRPCError({
+            code: 'FORBIDDEN',
+            message: concurrentCheck.message || '达到设备登录上限',
+          });
+        }
+
         log.info('用户登录成功', {
           email: input.email,
           userId: result.user?.id,
+          ip,
         });
 
         // 脱敏和转换用户数据
@@ -150,5 +187,81 @@ export const authRouter = router({
     const transformedUser = transformUserField(sanitizeUser(ctx.user));
 
     return success(transformedUser, '获取用户资料成功');
+  }),
+
+  /**
+   * 获取当前用户的活跃设备列表
+   */
+  myDevices: publicProcedure.query(async ({ ctx }) => {
+    if (!ctx.user) {
+      throw new TRPCError({
+        code: 'UNAUTHORIZED',
+        message: '未登录',
+      });
+    }
+
+    log.debug('获取用户设备列表', { userId: ctx.user.id });
+
+    const devices = await getUserActiveDevices(ctx.user.id);
+
+    return success(devices, '获取设备列表成功');
+  }),
+
+  /**
+   * 踢出指定设备
+   */
+  revokeDevice: publicProcedure
+    .input(
+      z.object({
+        deviceFingerprint: z.string(),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      if (!ctx.user) {
+        throw new TRPCError({
+          code: 'UNAUTHORIZED',
+          message: '未登录',
+        });
+      }
+
+      log.info('用户踢出设备', {
+        userId: ctx.user.id,
+        deviceFingerprint: input.deviceFingerprint,
+      });
+
+      await revokeDevice(ctx.user.id, input.deviceFingerprint);
+
+      return success(null, '设备已移除');
+    }),
+
+  /**
+   * 踢出所有设备（当前设备除外）
+   */
+  revokeAllDevices: publicProcedure.mutation(async ({ ctx }) => {
+    if (!ctx.user) {
+      throw new TRPCError({
+        code: 'UNAUTHORIZED',
+        message: '未登录',
+      });
+    }
+
+    // 获取当前设备的指纹
+    const ip = ctx.req.ip || (ctx.req.headers['x-forwarded-for'] as string) || 'unknown';
+    const userAgent = (ctx.req.headers['user-agent'] as string) || 'unknown';
+    const { fingerprint: currentFingerprint } = generateDeviceInfo(ip, userAgent);
+
+    // 获取所有设备
+    const allDevices = await getUserActiveDevices(ctx.user.id);
+
+    // 踢出其他设备
+    for (const device of allDevices) {
+      if (device.fingerprint !== currentFingerprint) {
+        await revokeDevice(ctx.user.id, device.fingerprint);
+      }
+    }
+
+    log.info('用户踢出所有设备', { userId: ctx.user.id });
+
+    return success(null, '已踢出所有其他设备');
   }),
 });

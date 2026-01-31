@@ -1,24 +1,32 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'bun:test';
-import { createRedisClient, RedisClient } from '../../lib/redis';
+import Redis from 'ioredis';
+import type { RedisClient } from '../../lib/redis';
 
 describe('Redis Client', () => {
   let redis: RedisClient;
   let testDb = 15; // 使用第15个数据库进行测试
 
   beforeAll(async () => {
-    redis = createRedisClient({
+    // 直接创建新的 Redis 实例，避免使用单例
+    redis = new Redis({
       host: process.env.REDIS_HOST || 'localhost',
       port: parseInt(process.env.REDIS_PORT || '6379'),
       db: testDb,
       lazyConnect: false,
     });
 
-    // 等待连接
-    await redis.connect();
+    // 等待连接就绪
+    await new Promise<void>((resolve) => {
+      redis.on('ready', () => {
+        console.log('Redis ready for redis tests');
+        resolve();
+      });
+    });
   });
 
   afterAll(async () => {
-    await redis.disconnect();
+    // 不要关闭 Redis 连接，因为其他测试可能还需要使用
+    // await redis.disconnect();
   });
 
   beforeEach(async () => {
