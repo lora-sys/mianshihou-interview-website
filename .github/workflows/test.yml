@@ -43,7 +43,10 @@ jobs:
       - name: Run unit tests
         run: |
           cd mianshihou/apps/api
-          bun test tests/unit
+          echo "Bun version: $(bun --version)"
+          echo "Redis connection test..."
+          redis-cli ping || echo "Redis not available on localhost"
+          bun test tests/unit --reporter=verbose
 
       # 5. 生成覆盖率报告
       - name: Generate coverage
