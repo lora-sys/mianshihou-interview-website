@@ -10,6 +10,7 @@ import { headersFromRequest } from './lib/cookie-utils';
 import { registerLoggingMiddleware } from './middlewares/logger';
 import { getRedisManager } from './lib/redis';
 import { startCleanupTasks, stopCleanupTasks } from './tasks/cleanup-schedule';
+import { performHealthCheck, performLivenessCheck } from './lib/health';
 
 const fastify = Fastify({
   logger:
@@ -69,11 +70,25 @@ fastify.all('/api/auth/*', async (request, reply) => {
   }
 });
 
-fastify.get('/health', async () => ({
-  status: 'ok',
-  timestamp: new Date().toISOString(),
-  uptime: process.uptime(),
-}));
+// 详细健康检查（包含所有组件状态）
+fastify.get('/health', async () => {
+  return performHealthCheck();
+});
+
+// 存活检查（快速检查，用于Kubernetes等编排系统）
+fastify.get('/health/live', async () => {
+  const result = await performLivenessCheck();
+  return result;
+});
+
+// 就绪检查（检查服务是否准备好接收流量）
+fastify.get('/health/ready', async () => {
+  const health = await performHealthCheck();
+  return {
+    status: health.status,
+    timestamp: health.timestamp,
+  };
+});
 
 fastify.register(fastifyTRPCPlugin, {
   prefix: '/trpc',
