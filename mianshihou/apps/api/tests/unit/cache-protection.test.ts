@@ -8,23 +8,50 @@ describe('Cache Protection', () => {
   let testDb = 15;
 
   beforeAll(async () => {
-    redis = createRedisClient({
-      host: process.env.REDIS_HOST || 'localhost',
-      port: parseInt(process.env.REDIS_PORT || '6379'),
-      db: testDb,
-      lazyConnect: false,
-    });
-    await redis.connect();
+    try {
+      // 确保断开任何现有连接
+      redis = createRedisClient({
+        host: process.env.REDIS_HOST || 'localhost',
+        port: parseInt(process.env.REDIS_PORT || '6379'),
+        db: testDb,
+        lazyConnect: false,
+      });
 
-    cacheProtection = createCacheProtection({
-      redis,
-      prefix: 'test',
-    });
+      // 等待连接就绪
+      await new Promise<void>((resolve) => {
+        redis.on('ready', () => {
+          console.log('Redis client ready for cache protection tests');
+          resolve();
+        });
+
+        // 如果已经连接，立即resolve
+        if (redis.status === 'ready') {
+          resolve();
+        }
+      });
+
+      // 清空测试数据库
+      await redis.flushdb();
+
+      cacheProtection = createCacheProtection({
+        redis,
+        prefix: 'test',
+      });
+    } catch (error) {
+      console.error('Failed to initialize cache protection tests:', error);
+      throw error;
+    }
   });
 
   afterAll(async () => {
-    await redis.flushdb();
-    await redis.disconnect();
+    try {
+      if (redis && redis.status !== 'end') {
+        await redis.flushdb();
+        await redis.quit();
+      }
+    } catch (error) {
+      console.error('Error during cleanup:', error);
+    }
   });
 
   beforeEach(async () => {
