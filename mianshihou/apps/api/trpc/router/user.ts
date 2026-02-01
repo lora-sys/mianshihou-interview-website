@@ -145,4 +145,99 @@ export const userRouter = router({
 
     return success({ id: deletedUser.id }, '删除用户成功');
   }),
+},
+
+  // Batch create users - requires admin
+  batchCreate: adminProcedure
+    .input(
+      z.object({
+        users: z.array(
+          z.object({
+            userAccount: z.string().min(3).max(256),
+            userPassword: z.string().min(6).max(64),
+            email: z.string().email().optional(),
+            userName: z.string().min(1).max(256).optional(),
+          })
+        ).min(1).max(100),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { users: usersData } = input;
+      const results = {
+        success: [] as string[],
+        failed: [] as { userAccount: string; reason: string }[],
+      };
+
+      // 批量创建用户
+      for (const userData of usersData) {
+        try {
+          // 检查账号是否已存在
+          const [existingUser] = await db
+            .select()
+            .from(users)
+            .where(eq(users.userAccount, userData.userAccount))
+            .limit(1);
+
+          if (existingUser) {
+            results.failed.push({
+              userAccount: userData.userAccount,
+              reason: '账号已存在'
+            });
+            continue;
+          }
+
+          const [newUser] = await db.insert(users).values(userData).returning();
+          results.success.push(newUser.id);
+        } catch (error) {
+          results.failed.push({
+            userAccount: userData.userAccount,
+            reason: error instanceof Error ? error.message : '创建失败'
+          });
+        }
+      }
+
+      return success(results, `批量创建用户完成：成功 ${results.success.length}，失败 ${results.failed.length}`);
+    }),
+
+  // Batch delete users - requires admin
+  batchDelete: adminProcedure
+    .input(
+      z.object({
+        ids: z.array(z.string()).min(1).max(100),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { ids } = input;
+      const results = {
+        success: [] as string[],
+        failed: [] as { id: string; reason: string }[],
+      };
+
+      // 批量删除用户（软删除）
+      for (const id of ids) {
+        try {
+          const [deletedUser] = await db
+            .update(users)
+            .set({ isDelete: true, updateTime: new Date() })
+            .where(and(eq(users.id, id), eq(users.isDelete, false)))
+            .returning();
+
+          if (deletedUser) {
+            results.success.push(id);
+          } else {
+            results.failed.push({
+              id,
+              reason: '用户不存在或已删除'
+            });
+          }
+        } catch (error) {
+          results.failed.push({
+            id,
+            reason: error instanceof Error ? error.message : '删除失败'
+          });
+        }
+      }
+
+      return success(results, `批量删除用户完成：成功 ${results.success.length}，失败 ${results.failed.length}`);
+    }),
 });
