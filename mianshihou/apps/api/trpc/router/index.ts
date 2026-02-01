@@ -7,6 +7,7 @@ import { postRouter } from './post';
 import { postThumbRouter } from './postThumb';
 import { postFavourRouter } from './postFavour';
 import { authRouter } from './auth';
+import { uploadRouter } from './upload';
 
 export const appRouter = router({
   users: userRouter,
@@ -16,6 +17,7 @@ export const appRouter = router({
   postThumbs: postThumbRouter.postThumbs,
   postFavours: postFavourRouter.postFavours,
   auth: authRouter,
+  upload: uploadRouter,
   health: publicProcedure.query(() => {
     return { status: 'ok', timestamp: new Date().toISOString() };
   }),
