@@ -744,6 +744,202 @@ curl -X POST http://localhost:3001/trpc/users.delete \
 
 ---
 
+### 2.6 批量创建用户
+
+**接口路径**: `POST /trpc/users.batchCreate`
+
+**权限**: 管理员
+
+**请求参数**:
+```typescript
+{
+  users: Array<{
+    userAccount: string,   // 用户账号，3-256 字符，必填
+    userPassword: string,  // 用户密码，6-64 字符，必填
+    email?: string,        // 邮箱，可选
+    userName?: string      // 用户名，1-256 字符，可选
+  }>
+}
+```
+
+**参数限制**:
+- `users` 数组长度：1-100 条
+
+**请求示例**:
+```bash
+curl -X POST http://localhost:3001/trpc/users.batchCreate \
+  -H "Content-Type: application/json" \
+  -d '{
+    "users": [
+      {
+        "userAccount": "user001",
+        "userPassword": "password123",
+        "email": "user001@example.com",
+        "userName": "用户001"
+      },
+      {
+        "userAccount": "user002",
+        "userPassword": "password456",
+        "email": "user002@example.com",
+        "userName": "用户002"
+      }
+    ]
+  }'
+```
+
+**响应示例**:
+```json
+{
+  "result": {
+    "data": {
+      "success": true,
+      "message": "批量创建用户完成：成功 2，失败 0",
+      "data": {
+        "success": ["user_id_001", "user_id_002"],
+        "failed": []
+      }
+    }
+  }
+}
+```
+
+**失败响应示例**:
+```json
+{
+  "result": {
+    "data": {
+      "success": true,
+      "message": "批量创建用户完成：成功 1，失败 1",
+      "data": {
+        "success": ["user_id_001"],
+        "failed": [
+          {
+            "userAccount": "user002",
+            "reason": "账号已存在"
+          }
+        ]
+      }
+    }
+  }
+}
+```
+
+---
+
+### 2.7 批量删除用户
+
+**接口路径**: `POST /trpc/users.batchDelete`
+
+**权限**: 管理员
+
+**请求参数**:
+```typescript
+{
+  ids: string[]  // 用户 ID 数组，1-100 条
+}
+```
+
+**参数限制**:
+- `ids` 数组长度：1-100 条
+
+**请求示例**:
+```bash
+curl -X POST http://localhost:3001/trpc/users.batchDelete \
+  -H "Content-Type: application/json" \
+  -d '{
+    "ids": ["user_id_001", "user_id_002", "user_id_003"]
+  }'
+```
+
+**响应示例**:
+```json
+{
+  "result": {
+    "data": {
+      "success": true,
+      "message": "批量删除用户完成：成功 2，失败 1",
+      "data": {
+        "success": ["user_id_001", "user_id_002"],
+        "failed": [
+          {
+            "id": "user_id_003",
+            "reason": "用户不存在或已删除"
+          }
+        ]
+      }
+    }
+  }
+}
+```
+
+---
+
+### 2.8 用户列表 + 统计信息
+
+**接口路径**: `GET /trpc/users.listWithStats`
+
+**权限**: 管理员
+
+**请求参数**:
+```typescript
+{
+  page?: number,      // 页码，默认 1
+  pageSize?: number,  // 每页数量，默认 10，最大 100
+  keyword?: string    // 搜索关键词，可选
+}
+```
+
+**请求示例**:
+```bash
+curl -X GET 'http://localhost:3001/trpc/users.listWithStats?page=1&pageSize=10' \
+  -H "Content-Type: application/json"
+```
+
+**响应示例**:
+```json
+{
+  "result": {
+    "data": {
+      "success": true,
+      "message": "获取用户列表和统计信息成功",
+      "data": {
+        "items": [
+          {
+            "id": "ozNAnk0mTsIom9mY3IBMRws3bZKEqBhs",
+            "userName": "测试用户",
+            "userAccount": "test@example.com",
+            "email": "test@example.com",
+            "userRole": "user",
+            "status": "active",
+            "createTime": "2026-01-28T15:13:51.612Z",
+            "updateTime": "2026-01-28T15:13:51.612Z",
+            "isDelete": false
+          }
+        ],
+        "pagination": {
+          "page": 1,
+          "pageSize": 10,
+          "total": 100,
+          "totalPages": 10
+        },
+        "stats": {
+          "totalUsers": 100,
+          "activeUsers": 45,
+          "newUsers": 8
+        }
+      }
+    }
+  }
+}
+```
+
+**统计数据说明**:
+- `totalUsers`: 总用户数
+- `activeUsers`: 活跃用户数（30天内登录）
+- `newUsers`: 新增用户数（7天内）
+
+---
+
 ## 3. 帖子接口 (posts)
 
 ### 3.1 创建帖子
@@ -875,6 +1071,86 @@ curl -X POST http://localhost:3001/trpc/posts.delete \
   }
 }
 ```
+
+---
+
+### 3.4 帖子列表 + 用户状态
+
+**接口路径**: `GET /trpc/posts.listWithUserStatus`
+
+**权限**: 公开
+
+**请求参数**:
+```typescript
+{
+  page?: number,      // 页码，默认 1
+  pageSize?: number,  // 每页数量，默认 10，最大 100
+  title?: string,     // 标题搜索关键词，可选
+  userId?: string    // 用户 ID，可选
+}
+```
+
+**请求示例**:
+```bash
+curl -X GET 'http://localhost:3001/trpc/posts.listWithUserStatus?page=1&pageSize=10' \
+  -H "Content-Type: application/json" \
+  -H "Cookie: session=your_session_token"
+```
+
+**响应示例**:
+```json
+{
+  "result": {
+    "data": {
+      "success": true,
+      "message": "查询帖子列表和用户状态成功",
+      "data": {
+        "items": [
+          {
+            "id": 1,
+            "title": "这是一个测试帖子",
+            "content": "这是帖子的内容",
+            "tags": "技术,测试",
+            "thumbNum": 10,
+            "favourNum": 5,
+            "userId": "ozNAnk0mTsIom9mY3IBMRws3bZKEqBhs",
+            "createTime": "2026-01-28T15:13:51.612Z",
+            "updateTime": "2026-01-28T15:13:51.612Z",
+            "isDelete": false,
+            "isThumbed": true,    // 当前用户是否点赞
+            "isFavoured": false   // 当前用户是否收藏
+          },
+          {
+            "id": 2,
+            "title": "另一个测试帖子",
+            "content": "这是另一个帖子的内容",
+            "tags": "开发,日志",
+            "thumbNum": 8,
+            "favourNum": 3,
+            "userId": "user_id_002",
+            "createTime": "2026-01-28T16:20:00.000Z",
+            "updateTime": "2026-01-28T16:20:00.000Z",
+            "isDelete": false,
+            "isThumbed": false,
+            "isFavoured": true
+          }
+        ],
+        "pagination": {
+          "page": 1,
+          "pageSize": 10,
+          "total": 50,
+          "totalPages": 5
+        }
+      }
+    }
+  }
+}
+```
+
+**说明**:
+- `isThumbed`: 当前登录用户是否已点赞该帖子
+- `isFavoured`: 当前登录用户是否已收藏该帖子
+- 如果用户未登录，这两个字段都为 `false`
 
 ---
 
@@ -1387,6 +1663,180 @@ curl -X POST http://localhost:3001/trpc/questionBanks.delete \
 
 ---
 
+### 6.4 批量创建题库
+
+**接口路径**: `POST /trpc/questionBanks.batchCreate`
+
+**权限**: 公开
+
+**请求参数**:
+```typescript
+{
+  questionBanks: Array<{
+    title: string,        // 题库标题，必填
+    description?: string,  // 题库描述，可选
+    picture?: string,      // 题库图片，可选
+    userId: string         // 用户 ID，必填
+  }>
+}
+```
+
+**参数限制**:
+- `questionBanks` 数组长度：1-50 条
+
+**请求示例**:
+```bash
+curl -X POST http://localhost:3001/trpc/questionBanks.batchCreate \
+  -H "Content-Type: application/json" \
+  -d '{
+    "questionBanks": [
+      {
+        "title": "数学题库",
+        "description": "高中数学题目",
+        "userId": "ozNAnk0mTsIom9mY3IBMRws3bZKEqBhs"
+      },
+      {
+        "title": "英语题库",
+        "description": "英语四级题目",
+        "userId": "ozNAnk0mTsIom9mY3IBMRws3bZKEqBhs"
+      }
+    ]
+  }'
+```
+
+**响应示例**:
+```json
+{
+  "result": {
+    "data": {
+      "success": true,
+      "message": "批量创建题库完成：成功 2，失败 0",
+      "data": {
+        "success": [1, 2],
+        "failed": []
+      }
+    }
+  }
+}
+```
+
+---
+
+### 6.5 批量删除题库
+
+**接口路径**: `POST /trpc/questionBanks.batchDelete`
+
+**权限**: 公开
+
+**请求参数**:
+```typescript
+{
+  ids: number[]  // 题库 ID 数组，1-50 条
+}
+```
+
+**参数限制**:
+- `ids` 数组长度：1-50 条
+
+**请求示例**:
+```bash
+curl -X POST http://localhost:3001/trpc/questionBanks.batchDelete \
+  -H "Content-Type: application/json" \
+  -d '{
+    "ids": [1, 2, 3]
+  }'
+```
+
+**响应示例**:
+```json
+{
+  "result": {
+    "data": {
+      "success": true,
+      "message": "批量删除题库完成：成功 2，失败 1",
+      "data": {
+        "success": [1, 2],
+        "failed": [
+          {
+            "id": 3,
+            "reason": "题库不存在或已删除"
+          }
+        ]
+      }
+    }
+  }
+}
+```
+
+---
+
+### 6.6 题库列表 + 题目数量
+
+**接口路径**: `GET /trpc/questionBanks.listWithQuestionCount`
+
+**权限**: 公开
+
+**请求参数**:
+```typescript
+{
+  page?: number,      // 页码，默认 1
+  pageSize?: number,  // 每页数量，默认 10，最大 100
+  title?: string     // 标题搜索关键词，可选
+}
+```
+
+**请求示例**:
+```bash
+curl -X GET 'http://localhost:3001/trpc/questionBanks.listWithQuestionCount?page=1&pageSize=10' \
+  -H "Content-Type: application/json"
+```
+
+**响应示例**:
+```json
+{
+  "result": {
+    "data": {
+      "success": true,
+      "message": "查询题库列表和题目数量成功",
+      "data": {
+        "items": [
+          {
+            "id": 1,
+            "title": "数学题库",
+            "description": "高中数学题目",
+            "picture": "https://example.com/math.jpg",
+            "userId": "ozNAnk0mTsIom9mY3IBMRws3bZKEqBhs",
+            "createTime": "2026-01-28T15:13:51.612Z",
+            "updateTime": "2026-01-28T15:13:51.612Z",
+            "isDelete": false,
+            "questionCount": 150
+          },
+          {
+            "id": 2,
+            "title": "英语题库",
+            "description": "英语四级题目",
+            "picture": "https://example.com/english.jpg",
+            "userId": "ozNAnk0mTsIom9mY3IBMRws3bZKEqBhs",
+            "createTime": "2026-01-28T15:13:51.612Z",
+            "updateTime": "2026-01-28T15:13:51.612Z",
+            "isDelete": false,
+            "questionCount": 200
+          }
+        ],
+        "pagination": {
+          "page": 1,
+          "pageSize": 10,
+          "total": 50,
+          "totalPages": 5
+        }
+      }
+    }
+  }
+}
+```
+
+---
+
 ## 7. 题目接口 (questions)
 
 ### 7.1 创建题目
@@ -1489,7 +1939,354 @@ curl -X GET 'http://localhost:3001/trpc/questions.list?page=1&pageSize=10' \
 
 ---
 
-## 8. 其他接口
+### 7.3 批量创建题目
+
+**接口路径**: `POST /trpc/questions.batchCreate`
+
+**权限**: 公开
+
+**请求参数**:
+```typescript
+{
+  questions: Array<{
+    title: string,              // 题目标题，必填
+    content: string,            // 题目内容，必填
+    answer?: string,             // 答案，可选
+    tags?: string[],             // 标签数组，可选
+    questionBankId?: number,     // 题库 ID，可选
+    userId: string               // 用户 ID，必填
+  }>
+}
+```
+
+**参数限制**:
+- `questions` 数组长度：1-100 条
+
+**请求示例**:
+```bash
+curl -X POST http://localhost:3001/trpc/questions.batchCreate \
+  -H "Content-Type: application/json" \
+  -d '{
+    "questions": [
+      {
+        "title": "什么是闭包？",
+        "content": "请解释 JavaScript 中的闭包概念",
+        "answer": "闭包是指有权访问另一个函数作用域中变量的函数",
+        "tags": ["JavaScript", "基础"],
+        "userId": "ozNAnk0mTsIom9mY3IBMRws3bZKEqBhs"
+      },
+      {
+        "title": "什么是原型？",
+        "content": "请解释 JavaScript 中的原型概念",
+        "answer": "原型是 JavaScript 对象之间继承的基础",
+        "tags": ["JavaScript", "基础"],
+        "userId": "ozNAnk0mTsIom9mY3IBMRws3bZKEqBhs"
+      }
+    ]
+  }'
+```
+
+**响应示例**:
+```json
+{
+  "result": {
+    "data": {
+      "success": true,
+      "message": "批量创建题目完成：成功 2，失败 0",
+      "data": {
+        "success": [1, 2],
+        "failed": []
+      }
+    }
+  }
+}
+```
+
+---
+
+### 7.4 批量删除题目
+
+**接口路径**: `POST /trpc/questions.batchDelete`
+
+**权限**: 公开
+
+**请求参数**:
+```typescript
+{
+  ids: number[]  // 题目 ID 数组，1-100 条
+}
+```
+
+**参数限制**:
+- `ids` 数组长度：1-100 条
+
+**请求示例**:
+```bash
+curl -X POST http://localhost:3001/trpc/questions.batchDelete \
+  -H "Content-Type: application/json" \
+  -d '{
+    "ids": [1, 2, 3]
+  }'
+```
+
+**响应示例**:
+```json
+{
+  "result": {
+    "data": {
+      "success": true,
+      "message": "批量删除题目完成：成功 2，失败 1",
+      "data": {
+        "success": [1, 2],
+        "failed": [
+          {
+            "id": 3,
+            "reason": "题目不存在或已删除"
+          }
+        ]
+      }
+    }
+  }
+}
+```
+
+---
+
+## 8. 文件上传接口 (upload)
+
+### 8.1 上传头像
+
+**接口路径**: `POST /trpc/upload.uploadAvatar`
+
+**权限**: 需要登录
+
+**请求参数**: `multipart/form-data`
+
+```
+file: File  // 图片文件
+```
+
+**文件限制**:
+- 支持格式：JPEG, PNG, GIF, WebP, SVG
+- 文件大小：最大 5MB
+- 处理方式：自动压缩为 200x200，JPEG 格式，85% 质量
+
+**请求示例**:
+```bash
+curl -X POST http://localhost:3001/trpc/upload.uploadAvatar \
+  -F "file=@/path/to/avatar.jpg" \
+  -H "Cookie: session=your_session_token"
+```
+
+**响应示例**:
+```json
+{
+  "result": {
+    "data": {
+      "success": true,
+      "message": "头像上传成功",
+      "data": {
+        "filename": "1769933000000_abc123.jpg",
+        "originalName": "avatar.jpg",
+        "size": 102400,
+        "mimetype": "image/jpeg",
+        "path": "/path/to/uploads/avatar/1769933000000_abc123.jpg",
+        "url": "http://localhost:3001/uploads/avatar/1769933000000_abc123.jpg"
+      }
+    }
+  }
+}
+```
+
+---
+
+### 8.2 上传附件
+
+**接口路径**: `POST /trpc/upload.uploadAttachment`
+
+**权限**: 需要登录
+
+**请求参数**: `multipart/form-data`
+
+```
+file: File  // 文件
+```
+
+**文件限制**:
+- 支持格式：JPEG, PNG, GIF, WebP, SVG, PDF, Word, Excel, Text, Markdown
+- 文件大小：最大 10MB
+- 图片处理：自动压缩为 1920x1080，JPEG 格式，80% 质量
+- 文档：直接保存
+
+**请求示例**:
+```bash
+curl -X POST http://localhost:3001/trpc/upload.uploadAttachment \
+  -F "file=@/path/to/document.pdf" \
+  -H "Cookie: session=your_session_token"
+```
+
+**响应示例**:
+```json
+{
+  "result": {
+    "data": {
+      "success": true,
+      "message": "附件上传成功",
+      "data": {
+        "filename": "1769933000000_xyz789.pdf",
+        "originalName": "document.pdf",
+        "size": 2048000,
+        "mimetype": "application/pdf",
+        "path": "/path/to/uploads/attachment/1769933000000_xyz789.pdf",
+        "url": "http://localhost:3001/uploads/attachment/1769933000000_xyz789.pdf"
+      }
+    }
+  }
+}
+```
+
+---
+
+### 8.3 删除文件
+
+**接口路径**: `POST /trpc/upload.deleteFile`
+
+**权限**: 需要登录
+
+**请求参数**:
+```typescript
+{
+  filename: string,  // 文件名
+  type: 'avatar' | 'attachment'  // 文件类型
+}
+```
+
+**请求示例**:
+```bash
+curl -X POST http://localhost:3001/trpc/upload.deleteFile \
+  -H "Content-Type: application/json" \
+  -H "Cookie: session=your_session_token" \
+  -d '{
+    "filename": "1769933000000_abc123.jpg",
+    "type": "avatar"
+  }'
+```
+
+**响应示例**:
+```json
+{
+  "result": {
+    "data": {
+      "success": true,
+      "message": "文件删除成功"
+    }
+  }
+}
+```
+
+---
+
+### 8.4 获取文件信息
+
+**接口路径**: `POST /trpc/upload.getFileInfo`
+
+**权限**: 需要登录
+
+**请求参数**:
+```typescript
+{
+  filename: string,  // 文件名
+  type: 'avatar' | 'attachment'  // 文件类型
+}
+```
+
+**请求示例**:
+```bash
+curl -X POST http://localhost:3001/trpc/upload.getFileInfo \
+  -H "Content-Type: application/json" \
+  -H "Cookie: session=your_session_token" \
+  -d '{
+    "filename": "1769933000000_abc123.jpg",
+    "type": "avatar"
+  }'
+```
+
+**响应示例**:
+```json
+{
+  "result": {
+    "data": {
+      "success": true,
+      "message": "获取文件信息成功",
+      "data": {
+        "filename": "1769933000000_abc123.jpg",
+        "originalName": "avatar.jpg",
+        "size": 102400,
+        "mimetype": "image/jpeg",
+        "path": "/path/to/uploads/avatar/1769933000000_abc123.jpg",
+        "url": "http://localhost:3001/uploads/avatar/1769933000000_abc123.jpg"
+      }
+    }
+  }
+}
+```
+
+---
+
+### 8.5 批量删除文件
+
+**接口路径**: `POST /trpc/upload.batchDeleteFiles`
+
+**权限**: 管理员
+
+**请求参数**:
+```typescript
+{
+  files: Array<{
+    filename: string,  // 文件名
+    type: 'avatar' | 'attachment'  // 文件类型
+  }>
+}
+```
+
+**请求示例**:
+```bash
+curl -X POST http://localhost:3001/trpc/upload.batchDeleteFiles \
+  -H "Content-Type: application/json" \
+  -H "Cookie: session=your_session_token" \
+  -d '{
+    "files": [
+      {
+        "filename": "1769933000000_abc123.jpg",
+        "type": "avatar"
+      },
+      {
+        "filename": "1769933000000_xyz789.pdf",
+        "type": "attachment"
+      }
+    ]
+  }'
+```
+
+**响应示例**:
+```json
+{
+  "result": {
+    "data": {
+      "success": true,
+      "message": "批量删除文件完成：成功 2，失败 0",
+      "data": {
+        "success": ["1769933000000_abc123.jpg", "1769933000000_xyz789.pdf"],
+        "failed": []
+      }
+    }
+  }
+}
+```
+
+---
+
+## 9. 其他接口
 
 ### 8.1 健康检查
 
