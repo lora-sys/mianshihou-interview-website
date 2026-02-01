@@ -12,6 +12,9 @@ import { getRedisManager } from './lib/redis';
 import { startCleanupTasks, stopCleanupTasks } from './tasks/cleanup-schedule';
 import { performHealthCheck, performLivenessCheck } from './lib/health';
 
+// tRPC Panel
+import { createTRPCPanel } from 'trpc-panel';
+
 const fastify = Fastify({
   logger:
     process.env.NODE_ENV === 'development'
@@ -97,6 +100,27 @@ fastify.register(fastifyTRPCPlugin, {
     createContext: createContextAsync,
   },
 });
+
+// 集成 tRPC Panel（仅在开发环境）
+if (process.env.NODE_ENV === 'development') {
+  const { handler } = createTRPCPanel({
+    url: `http://localhost:${process.env.PORT || 3001}`,
+    router: appRouter,
+    serveStatic: true,
+  });
+
+  fastify.register(async (fastify) => {
+    fastify.route({
+      method: ['GET', 'POST', 'PUT', 'DELETE'],
+      url: '/trpc-panel',
+      handler: async (request, reply) => {
+        return handler(request.raw, reply.raw);
+      },
+    });
+
+    fastify.log.info('🔧 tRPC Panel available at http://localhost:3001/trpc-panel');
+  });
+}
 
 fastify.setErrorHandler((error: any, request, reply) => {
   // 判断是否为 Zod 验证错误

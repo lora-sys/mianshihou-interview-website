@@ -95,3 +95,13 @@ const t = initTRPC.context<Context>().create({
 
 export const router = t.router;
 export const publicProcedure = t.procedure;
+
+// 导出重试中间件
+export {
+  retryMiddleware,
+  circuitBreakerMiddleware,
+  dbRetryMiddleware,
+  apiRetryMiddleware,
+  createRetryMiddleware,
+  createCircuitBreakerMiddleware,
+} from './middleware/retry';
