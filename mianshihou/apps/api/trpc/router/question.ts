@@ -218,4 +218,130 @@ export const questionRouter = router({
         return paginate(data, pagination, '查询题目列表成功');
       }),
   }),
+
+  batchCreate: publicProcedure
+    .input(
+      z.object({
+        questions: z
+          .array(
+            z.object({
+              title: z.string().min(1),
+              content: z.string().min(1),
+              answer: z.string().optional(),
+              tags: z.array(z.string()).optional(),
+              questionBankId: z.number().optional(),
+              userId: z.string(),
+            })
+          )
+          .min(1)
+          .max(100),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      ctx.logger.info({ count: input.questions.length }, '批量创建题目开始');
+
+      const results = {
+        success: [] as number[],
+        failed: [] as { title: string; reason: string }[],
+      };
+
+      // 并行创建题目
+      const createPromises = input.questions.map(async (questionData) => {
+        try {
+          const [newQuestion] = await db
+            .insert(questions)
+            .values({
+              title: questionData.title,
+              content: questionData.content,
+              answer: questionData.answer,
+              tags: questionData.tags ? JSON.stringify(questionData.tags) : null,
+              questionBankId: questionData.questionBankId,
+              userId: questionData.userId,
+            })
+            .returning();
+
+          results.success.push(newQuestion.id);
+          return newQuestion.id;
+        } catch (error) {
+          results.failed.push({
+            title: questionData.title,
+            reason: error instanceof Error ? error.message : '创建失败',
+          });
+          return null;
+        }
+      });
+
+      await Promise.all(createPromises);
+
+      ctx.logger.info(
+        {
+          success: results.success.length,
+          failed: results.failed.length,
+        },
+        '批量创建题目完成'
+      );
+
+      return success(
+        results,
+        `批量创建题目完成：成功 ${results.success.length}，失败 ${results.failed.length}`
+      );
+    }),
+
+  batchDelete: publicProcedure
+    .input(
+      z.object({
+        ids: z.array(z.number()).min(1).max(100),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      ctx.logger.info({ ids: input.ids }, '批量删除题目开始');
+
+      const results = {
+        success: [] as number[],
+        failed: [] as { id: number; reason: string }[],
+      };
+
+      // 并行删除题目
+      const deletePromises = input.ids.map(async (id) => {
+        try {
+          const [deletedQuestion] = await db
+            .update(questions)
+            .set({ isDelete: true, updateTime: new Date() })
+            .where(and(eq(questions.id, id), eq(questions.isDelete, false)))
+            .returning();
+
+          if (deletedQuestion) {
+            results.success.push(id);
+            return id;
+          } else {
+            results.failed.push({
+              id,
+              reason: '题目不存在或已删除',
+            });
+            return null;
+          }
+        } catch (error) {
+          results.failed.push({
+            id,
+            reason: error instanceof Error ? error.message : '删除失败',
+          });
+          return null;
+        }
+      });
+
+      await Promise.all(deletePromises);
+
+      ctx.logger.info(
+        {
+          success: results.success.length,
+          failed: results.failed.length,
+        },
+        '批量删除题目完成'
+      );
+
+      return success(
+        results,
+        `批量删除题目完成：成功 ${results.success.length}，失败 ${results.failed.length}`
+      );
+    }),
 });

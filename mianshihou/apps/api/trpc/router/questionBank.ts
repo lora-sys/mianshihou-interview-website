@@ -419,4 +419,126 @@ export const questionBankRouter = router({
         return paginate(data, pagination, '获取题库题目列表成功');
       }),
   }),
+
+  batchCreate: publicProcedure
+    .input(
+      z.object({
+        questionBanks: z
+          .array(
+            z.object({
+              title: z.string().min(1),
+              description: z.string().optional(),
+              picture: z.string().optional(),
+              userId: z.string(),
+            })
+          )
+          .min(1)
+          .max(50),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      ctx.logger.info({ count: input.questionBanks.length }, '批量创建题库开始');
+
+      const results = {
+        success: [] as number[],
+        failed: [] as { title: string; reason: string }[],
+      };
+
+      // 并行创建题库
+      const createPromises = input.questionBanks.map(async (questionBankData) => {
+        try {
+          const [newQuestionBank] = await db
+            .insert(questionBanks)
+            .values({
+              title: questionBankData.title,
+              description: questionBankData.description,
+              picture: questionBankData.picture,
+              userId: questionBankData.userId,
+            })
+            .returning();
+
+          results.success.push(newQuestionBank.id);
+          return newQuestionBank.id;
+        } catch (error) {
+          results.failed.push({
+            title: questionBankData.title,
+            reason: error instanceof Error ? error.message : '创建失败',
+          });
+          return null;
+        }
+      });
+
+      await Promise.all(createPromises);
+
+      ctx.logger.info(
+        {
+          success: results.success.length,
+          failed: results.failed.length,
+        },
+        '批量创建题库完成'
+      );
+
+      return success(
+        results,
+        `批量创建题库完成：成功 ${results.success.length}，失败 ${results.failed.length}`
+      );
+    }),
+
+  batchDelete: publicProcedure
+    .input(
+      z.object({
+        ids: z.array(z.number()).min(1).max(50),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      ctx.logger.info({ ids: input.ids }, '批量删除题库开始');
+
+      const results = {
+        success: [] as number[],
+        failed: [] as { id: number; reason: string }[],
+      };
+
+      // 并行删除题库
+      const deletePromises = input.ids.map(async (id) => {
+        try {
+          const [deletedQuestionBank] = await db
+            .update(questionBanks)
+            .set({ isDelete: true, updateTime: new Date() })
+            .where(and(eq(questionBanks.id, id), eq(questionBanks.isDelete, false)))
+            .returning();
+
+          if (deletedQuestionBank) {
+            results.success.push(id);
+            return id;
+          } else {
+            results.failed.push({
+              id,
+              reason: '题库不存在或已删除',
+            });
+            return null;
+          }
+        } catch (error) {
+          results.failed.push({
+            id,
+            reason: error instanceof Error ? error.message : '删除失败',
+          });
+          return null;
+        }
+      });
+
+      await Promise.all(deletePromises);
+
+      ctx.logger.info(
+        {
+          success: results.success.length,
+          failed: results.failed.length,
+        },
+        '批量删除题库完成'
+      );
+
+      return success(
+        results,
+        `批量删除题库完成：成功 ${results.success.length}，失败 ${results.failed.length}`
+      );
+    }),
 });

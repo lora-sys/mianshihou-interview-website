@@ -170,33 +170,41 @@ export const userRouter = router({
         failed: [] as { userAccount: string; reason: string }[],
       };
 
-      // 批量创建用户
-      for (const userData of usersData) {
-        try {
-          // 检查账号是否已存在
-          const [existingUser] = await db
-            .select()
-            .from(users)
-            .where(eq(users.userAccount, userData.userAccount))
-            .limit(1);
+      // 并行检查所有用户账号是否已存在
+      const existingUsers = await Promise.all(
+        usersData.map((userData) =>
+          db.select().from(users).where(eq(users.userAccount, userData.userAccount)).limit(1)
+        )
+      );
 
-          if (existingUser) {
+      const existingUserAccounts = new Set(
+        existingUsers.map(([user]) => user?.userAccount).filter(Boolean)
+      );
+
+      // 并行创建用户
+      const createPromises = usersData.map(async (userData, index) => {
+        try {
+          if (existingUserAccounts.has(userData.userAccount)) {
             results.failed.push({
               userAccount: userData.userAccount,
               reason: '账号已存在',
             });
-            continue;
+            return null;
           }
 
           const [newUser] = await db.insert(users).values(userData).returning();
           results.success.push(newUser.id);
+          return newUser.id;
         } catch (error) {
           results.failed.push({
             userAccount: userData.userAccount,
             reason: error instanceof Error ? error.message : '创建失败',
           });
+          return null;
         }
-      }
+      });
+
+      await Promise.all(createPromises);
 
       return success(
         results,
@@ -218,8 +226,8 @@ export const userRouter = router({
         failed: [] as { id: string; reason: string }[],
       };
 
-      // 批量删除用户（软删除）
-      for (const id of ids) {
+      // 并行删除用户（软删除）
+      const deletePromises = ids.map(async (id) => {
         try {
           const [deletedUser] = await db
             .update(users)
@@ -229,19 +237,24 @@ export const userRouter = router({
 
           if (deletedUser) {
             results.success.push(id);
+            return id;
           } else {
             results.failed.push({
               id,
               reason: '用户不存在或已删除',
             });
+            return null;
           }
         } catch (error) {
           results.failed.push({
             id,
             reason: error instanceof Error ? error.message : '删除失败',
           });
+          return null;
         }
-      }
+      });
+
+      await Promise.all(deletePromises);
 
       return success(
         results,
