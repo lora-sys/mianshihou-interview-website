@@ -8,6 +8,7 @@ import { log } from './lib/logger';
 import { auth } from './lib/auth';
 import { headersFromRequest } from './lib/cookie-utils';
 import { registerLoggingMiddleware } from './middlewares/logger';
+import { rateLimitMiddlewares } from './middlewares/rate-limit';
 import { getRedisManager } from './lib/redis';
 import { startCleanupTasks, stopCleanupTasks } from './tasks/cleanup-schedule';
 import { performHealthCheck, performLivenessCheck } from './lib/health';
@@ -34,6 +35,17 @@ fastify.register(fastifyCookie, {
 fastify.register(corsPlugin, {
   origin: process.env.CORS_ORIGIN || '*',
   credentials: true,
+});
+
+// 注册限流中间件（仅在非健康检查路由上生效）
+fastify.addHook('onRequest', async (request, reply) => {
+  // 跳过健康检查路由
+  if (request.url.startsWith('/health')) {
+    return;
+  }
+
+  // 应用全局限流
+  await rateLimitMiddlewares.global(request, reply);
 });
 
 // Register authentication endpoint with catch-all route
