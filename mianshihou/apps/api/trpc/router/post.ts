@@ -287,5 +287,85 @@ export const postRouter = router({
           throw error;
         }
       }),
+
+    // List posts with user thumb/favour status
+    listWithUserStatus: publicProcedure
+      .input(
+        z.object({
+          page: z.number().min(1).default(1),
+          pageSize: z.number().min(1).max(100).default(10),
+          title: z.string().optional(),
+          userId: z.string().optional(),
+        })
+      )
+      .query(async ({ ctx, input }) => {
+        ctx.logger.info(
+          { page: input.page, pageSize: input.pageSize, title: input.title, userId: input.userId },
+          '查询帖子列表和用户状态'
+        );
+
+        const offset = (input.page - 1) * input.pageSize;
+
+        const conditions = [eq(posts.isDelete, false)];
+
+        if (input.title) {
+          conditions.push(like(posts.title, `%${input.title}%`));
+        }
+        if (input.userId) {
+          conditions.push(eq(posts.userId, input.userId));
+        }
+
+        // 并行查询帖子列表和总数
+        const [data, totalResult] = await Promise.all([
+          db
+            .select()
+            .from(posts)
+            .where(and(...conditions))
+            .offset(offset)
+            .limit(input.pageSize)
+            .orderBy(desc(posts.createTime)),
+          db
+            .select()
+            .from(posts)
+            .where(and(...conditions)),
+        ]);
+
+        ctx.logger.info(
+          { count: data.length, total: totalResult.length, page: input.page },
+          '查询帖子列表成功，开始查询用户状态'
+        );
+
+        // 获取当前用户 ID（如果已登录）
+        const currentUserId = ctx.user?.id;
+
+        let thumbs: any[] = [];
+        let favours: any[] = [];
+
+        // 如果用户已登录，并行查询点赞和收藏状态
+        if (currentUserId) {
+          [thumbs, favours] = await Promise.all([
+            db.select().from(postThumbs).where(eq(postThumbs.userId, currentUserId)),
+            db.select().from(postFavours).where(eq(postFavours.userId, currentUserId)),
+          ]);
+        }
+
+        // 组合结果
+        const postsWithStatus = data.map((post) => ({
+          ...post,
+          isThumbed: currentUserId ? thumbs.some((t) => t.postId === post.id) : false,
+          isFavoured: currentUserId ? favours.some((f) => f.postId === post.id) : false,
+        }));
+
+        // 转换字段命名并包装分页响应
+        const transformedPosts = transformPosts(postsWithStatus);
+        const pagination = createPaginationMeta(input.page, input.pageSize, totalResult.length);
+        return success(
+          {
+            items: transformedPosts,
+            pagination,
+          },
+          '查询帖子列表和用户状态成功'
+        );
+      }),
   }),
 });

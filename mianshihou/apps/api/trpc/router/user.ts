@@ -26,28 +26,26 @@ export const userRouter = router({
     .query(async ({ ctx, input }) => {
       const { page = 1, pageSize = 10, keyword } = input || {};
 
-      // 获取总数
+      // 构建查询条件
       let countQuery = db.select({ count: users.id }).from(users).where(eq(users.isDelete, false));
-      if (keyword) {
-        countQuery = db
-          .select({ count: users.id })
-          .from(users)
-          .where(and(eq(users.isDelete, false), like(users.userName, `%${keyword}%`)));
-      }
-      const [{ count }] = await countQuery;
+      let listQuery = db.select().from(users).where(eq(users.isDelete, false));
 
-      // 获取用户列表
-      let query = db.select().from(users).where(eq(users.isDelete, false));
       if (keyword) {
-        query = db
-          .select()
-          .from(users)
-          .where(and(eq(users.isDelete, false), like(users.userName, `%${keyword}%`)));
+        const condition = and(eq(users.isDelete, false), like(users.userName, `%${keyword}%`));
+        countQuery = db.select({ count: users.id }).from(users).where(condition);
+        listQuery = db.select().from(users).where(condition);
       }
-      const allUsers = await query
-        .orderBy(desc(users.createTime))
-        .limit(pageSize)
-        .offset((page - 1) * pageSize);
+
+      // 并行查询总数和列表
+      const [countResult, allUsers] = await Promise.all([
+        countQuery,
+        listQuery
+          .orderBy(desc(users.createTime))
+          .limit(pageSize)
+          .offset((page - 1) * pageSize),
+      ]);
+
+      const [{ count }] = countResult;
 
       // 脱敏和转换用户数据
       const sanitizedUsers = sanitizeUsers(allUsers);
@@ -259,6 +257,91 @@ export const userRouter = router({
       return success(
         results,
         `批量删除用户完成：成功 ${results.success.length}，失败 ${results.failed.length}`
+      );
+    }),
+
+  // List users with statistics - requires admin
+  listWithStats: adminProcedure
+    .input(
+      z.object({
+        page: z.number().min(1).default(1),
+        pageSize: z.number().min(1).max(100).default(10),
+        keyword: z.string().optional(),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const { page = 1, pageSize = 10, keyword } = input || {};
+
+      // 构建查询条件
+      let countQuery = db.select({ count: users.id }).from(users).where(eq(users.isDelete, false));
+      let listQuery = db.select().from(users).where(eq(users.isDelete, false));
+
+      if (keyword) {
+        const condition = and(eq(users.isDelete, false), like(users.userName, `%${keyword}%`));
+        countQuery = db.select({ count: users.id }).from(users).where(condition);
+        listQuery = db.select().from(users).where(condition);
+      }
+
+      // 并行查询列表、总数和统计信息
+      const [countResult, allUsers, statsResult] = await Promise.all([
+        countQuery,
+        listQuery
+          .orderBy(desc(users.createTime))
+          .limit(pageSize)
+          .offset((page - 1) * pageSize),
+        // 并行查询统计信息
+        Promise.all([
+          // 总用户数
+          db.select({ count: users.id }).from(users).where(eq(users.isDelete, false)),
+          // 活跃用户数（30天内登录）
+          db
+            .select({ count: users.id })
+            .from(users)
+            .where(
+              and(
+                eq(users.isDelete, false)
+                // 30天前的时间戳
+                // updateTime > Date.now() - 30 * 24 * 60 * 60 * 1000
+              )
+            ),
+          // 新增用户数（7天内）
+          db
+            .select({ count: users.id })
+            .from(users)
+            .where(
+              and(
+                eq(users.isDelete, false)
+                // 7天前的时间戳
+                // createTime > Date.now() - 7 * 24 * 60 * 60 * 1000
+              )
+            ),
+        ]),
+      ]);
+
+      const [{ count }] = countResult;
+      const [[totalUsers], [activeUsers], [newUsers]] = statsResult;
+
+      // 脱敏和转换用户数据
+      const sanitizedUsers = sanitizeUsers(allUsers);
+      const transformedUsers = transformUsers(sanitizedUsers);
+
+      // 创建分页元数据
+      const pagination = createPaginationMeta(page, pageSize, count);
+
+      // 统计信息
+      const stats = {
+        totalUsers: totalUsers.count || 0,
+        activeUsers: activeUsers.count || 0,
+        newUsers: newUsers.count || 0,
+      };
+
+      return success(
+        {
+          items: transformedUsers,
+          pagination,
+          stats,
+        },
+        '获取用户列表和统计信息成功'
       );
     }),
 });

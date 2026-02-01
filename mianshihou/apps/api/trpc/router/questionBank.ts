@@ -541,4 +541,72 @@ export const questionBankRouter = router({
         `批量删除题库完成：成功 ${results.success.length}，失败 ${results.failed.length}`
       );
     }),
+
+  // List question banks with question count
+  listWithQuestionCount: publicProcedure
+    .input(
+      z.object({
+        page: z.number().min(1).default(1),
+        pageSize: z.number().min(1).max(100).default(10),
+        title: z.string().optional(),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      ctx.logger.info(
+        { page: input.page, pageSize: input.pageSize, title: input.title },
+        '查询题库列表和题目数量'
+      );
+
+      const offset = (input.page - 1) * input.pageSize;
+
+      const conditions = [];
+
+      if (input.title) {
+        conditions.push(like(questionBanks.title, `%${input.title}%`));
+      }
+
+      // 并行查询题库列表和总数
+      const [data, totalResult] = await Promise.all([
+        db
+          .select()
+          .from(questionBanks)
+          .where(conditions.length > 0 ? and(...conditions) : undefined)
+          .offset(offset)
+          .limit(input.pageSize)
+          .orderBy(desc(questionBanks.createTime)),
+        db
+          .select()
+          .from(questionBanks)
+          .where(conditions.length > 0 ? and(...conditions) : undefined),
+      ]);
+
+      ctx.logger.info(
+        { count: data.length, total: totalResult.length, page: input.page },
+        '查询题库列表成功，开始查询题目数量'
+      );
+
+      // 并行查询每个题库的题目数量
+      const questionBanksWithCount = await Promise.all(
+        data.map(async (qb) => {
+          const [{ count }] = await db
+            .select({ count: questions.id })
+            .from(questions)
+            .where(and(eq(questions.questionBankId, qb.id), eq(questions.isDelete, false)));
+
+          return {
+            ...qb,
+            questionCount: count || 0,
+          };
+        })
+      );
+
+      const pagination = createPaginationMeta(input.page, input.pageSize, totalResult.length);
+      return success(
+        {
+          items: questionBanksWithCount,
+          pagination,
+        },
+        '查询题库列表和题目数量成功'
+      );
+    }),
 });
