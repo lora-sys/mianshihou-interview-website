@@ -35,11 +35,14 @@ export function createRateLimitMiddleware(config: Partial<RateLimitConfig> = {})
         method: request.method,
       });
 
-      reply.status(429).header('Retry-After', retryAfter).send({
-        success: false,
-        message: config.message || '请求过于频繁，请稍后再试',
-        retryAfter,
-      });
+      reply
+        .status(429)
+        .header('Retry-After', retryAfter)
+        .send({
+          success: false,
+          message: config.message || '请求过于频繁，请稍后再试',
+          retryAfter,
+        });
 
       return reply;
     }
@@ -57,10 +60,7 @@ export function createRateLimitMiddleware(config: Partial<RateLimitConfig> = {})
 /**
  * 基于 IP 的限流中间件
  */
-export function ipRateLimitMiddleware(
-  windowMs: number = 60000,
-  maxRequests: number = 60
-) {
+export function ipRateLimitMiddleware(windowMs: number = 60000, maxRequests: number = 60) {
   return createRateLimitMiddleware({
     windowMs,
     maxRequests,
@@ -72,10 +72,7 @@ export function ipRateLimitMiddleware(
 /**
  * 基于用户的限流中间件
  */
-export function userRateLimitMiddleware(
-  windowMs: number = 60000,
-  maxRequests: number = 30
-) {
+export function userRateLimitMiddleware(windowMs: number = 60000, maxRequests: number = 30) {
   return createRateLimitMiddleware({
     windowMs,
     maxRequests,
@@ -90,10 +87,7 @@ export function userRateLimitMiddleware(
 /**
  * 基于 API 路径的限流中间件
  */
-export function apiRateLimitMiddleware(
-  windowMs: number = 60000,
-  maxRequests: number = 120
-) {
+export function apiRateLimitMiddleware(windowMs: number = 60000, maxRequests: number = 120) {
   return createRateLimitMiddleware({
     windowMs,
     maxRequests,

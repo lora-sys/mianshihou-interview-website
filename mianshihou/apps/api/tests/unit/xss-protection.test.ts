@@ -18,7 +18,9 @@ import {
 describe('XSS Protection', () => {
   describe('HTML 实体编码', () => {
     it('应该编码基本 HTML 实体', () => {
-      expect(encodeHTMLEntities('<script>alert("XSS")</script>')).toBe('&lt;script&gt;alert(&quot;XSS&quot;)&lt;&#x2F;script&gt;');
+      expect(encodeHTMLEntities('<script>alert("XSS")</script>')).toBe(
+        '&lt;script&gt;alert(&quot;XSS&quot;)&lt;&#x2F;script&gt;'
+      );
     });
 
     it('应该编码所有特殊字符', () => {

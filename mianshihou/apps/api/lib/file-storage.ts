@@ -12,7 +12,7 @@ export const ALLOWED_MIME_TYPES = {
   'image/gif': ['.gif'],
   'image/webp': ['.webp'],
   'image/svg+xml': ['.svg'],
-  
+
   // 文档
   'application/pdf': ['.pdf'],
   'application/msword': ['.doc'],
@@ -51,33 +51,24 @@ export interface FileInfo {
 export function generateUniqueFilename(originalName: string): string {
   const timestamp = Date.now();
   const random = Math.random().toString(36).substring(2, 15);
-  const ext = originalName.includes('.') 
+  const ext = originalName.includes('.')
     ? originalName.substring(originalName.lastIndexOf('.'))
     : '';
   return `${timestamp}_${random}${ext}`;
 }
 
 // 验证文件类型
-export function validateMimeType(
-  mimetype: string,
-  options: StorageOptions = {}
-): boolean {
+export function validateMimeType(mimetype: string, options: StorageOptions = {}): boolean {
   const allowedMimeTypes = options.allowedMimeTypes || Object.keys(ALLOWED_MIME_TYPES);
   return allowedMimeTypes.includes(mimetype);
 }
 
 // 验证文件扩展名
-export function validateExtension(
-  filename: string,
-  options: StorageOptions = {}
-): boolean {
-  const ext = filename.includes('.') 
-    ? filename.substring(filename.lastIndexOf('.'))
-    : '';
-  
-  const allowedExtensions = options.allowedExtensions || 
-    Object.values(ALLOWED_MIME_TYPES).flat();
-  
+export function validateExtension(filename: string, options: StorageOptions = {}): boolean {
+  const ext = filename.includes('.') ? filename.substring(filename.lastIndexOf('.')) : '';
+
+  const allowedExtensions = options.allowedExtensions || Object.values(ALLOWED_MIME_TYPES).flat();
+
   return allowedExtensions.includes(ext.toLowerCase());
 }
 
@@ -98,56 +89,58 @@ export function getFileUrl(filename: string, type: 'avatar' | 'attachment' = 'at
 // 保存文件
 export async function saveFile(
   file: {
-  filename: string;
-  data: Buffer;
-  mimetype: string;
-  size: number;
+    filename: string;
+    data: Buffer;
+    mimetype: string;
+    size: number;
   },
   type: 'avatar' | 'attachment' = 'attachment',
   options: StorageOptions = {}
 ): Promise<FileInfo> {
   const { filename, data, mimetype, size } = file;
-  
+
   // 验证文件
   if (!validateMimeType(mimetype, options)) {
     throw new Error(`不支持的文件类型: ${mimetype}`);
   }
-  
+
   if (!validateExtension(filename, options)) {
     throw new Error(`不支持的文件扩展名: ${filename}`);
   }
-  
+
   const maxSize = options.maxSize || FILE_SIZE_LIMITS[type] || FILE_SIZE_LIMITS.default;
   if (!validateFileSize(size, maxSize)) {
-    throw new Error(`文件大小超过限制: ${(size / 1024 / 1024).toFixed(2)}MB / ${maxSize / 1024 / 1024}MB}`);
+    throw new Error(
+      `文件大小超过限制: ${(size / 1024 / 1024).toFixed(2)}MB / ${maxSize / 1024 / 1024}MB}`
+    );
   }
-  
+
   // 生成唯一文件名
   const uniqueFilename = generateUniqueFilename(filename);
-  
+
   // 创建存储目录
   const uploadDir = join(process.cwd(), 'uploads', type);
   await fs.mkdir(uploadDir, { recursive: true });
-  
+
   // 保存文件
   const filePath = join(uploadDir, uniqueFilename);
   await fs.writeFile(filePath, data);
-  
+
   logger.info('文件保存成功', {
     filename: uniqueFilename,
     originalName: filename,
     size,
     mimetype,
-    type
+    type,
   });
-  
+
   return {
     filename: uniqueFilename,
     originalName: filename,
     size,
     mimetype,
     path: filePath,
-    url: getFileUrl(uniqueFilename, type)
+    url: getFileUrl(uniqueFilename, type),
   };
 }
 
@@ -158,15 +151,15 @@ export async function deleteFile(
 ): Promise<boolean> {
   try {
     const filePath = join(process.cwd(), 'uploads', type, filename);
-    
+
     // 检查文件是否存在
     await fs.access(filePath);
-    
+
     // 删除文件
     await fs.unlink(filePath);
-    
+
     logger.info('文件删除成功', { filename, type });
-    
+
     return true;
   } catch (error) {
     logger.warn('文件删除失败', { filename, type, error });
@@ -196,22 +189,20 @@ export async function getFileInfo(
   try {
     const filePath = join(process.cwd(), 'uploads', type, filename);
     const stats = await fs.stat(filePath);
-    
+
     // 根据 filename 推断 mimetype
-    const ext = filename.includes('.') 
-      ? filename.substring(filename.lastIndexOf('.'))
-      : '';
-    const mimetype = Object.entries(ALLOWED_MIME_TYPES)
-      .find(([_, extensions]) => extensions.includes(ext))
-      ?.[0] || 'application/octet-stream';
-    
+    const ext = filename.includes('.') ? filename.substring(filename.lastIndexOf('.')) : '';
+    const mimetype =
+      Object.entries(ALLOWED_MIME_TYPES).find(([_, extensions]) => extensions.includes(ext))?.[0] ||
+      'application/octet-stream';
+
     return {
       filename,
       originalName: filename,
       size: stats.size,
       mimetype,
       path: filePath,
-      url: getFileUrl(filename, type)
+      url: getFileUrl(filename, type),
     };
   } catch (error) {
     logger.warn('获取文件信息失败', { filename, type, error });

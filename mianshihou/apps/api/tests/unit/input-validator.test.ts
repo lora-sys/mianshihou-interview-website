@@ -21,19 +21,19 @@ describe('Input Validator', () => {
     it('应该检测过长的字符串', () => {
       const result = validateString('a'.repeat(1001), { maxLength: 1000 });
       expect(result.valid).toBe(false);
-      expect(result.errors.some(e => e.includes('不能超过'))).toBe(true);
+      expect(result.errors.some((e) => e.includes('不能超过'))).toBe(true);
     });
 
     it('应该检测过短的字符串', () => {
       const result = validateString('ab', { minLength: 3 });
       expect(result.valid).toBe(false);
-      expect(result.errors.some(e => e.includes('不能少于'))).toBe(true);
+      expect(result.errors.some((e) => e.includes('不能少于'))).toBe(true);
     });
 
     it('应该检测 SQL 关键词', () => {
       const result = validateString('SELECT * FROM users', { allowSQLKeywords: false });
       expect(result.valid).toBe(false);
-      expect(result.errors.some(e => e.includes('SQL 关键词'))).toBe(true);
+      expect(result.errors.some((e) => e.includes('SQL 关键词'))).toBe(true);
     });
 
     it('应该检测危险字符', () => {
@@ -48,7 +48,7 @@ describe('Input Validator', () => {
         pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
       });
       expect(result.valid).toBe(false);
-      expect(result.errors.some(e => e.includes('格式不正确'))).toBe(true);
+      expect(result.errors.some((e) => e.includes('格式不正确'))).toBe(true);
     });
 
     it('应该使用自定义验证函数', () => {
@@ -71,7 +71,7 @@ describe('Input Validator', () => {
     it('应该拒绝非数字', () => {
       const result = validateNumber('not a number' as any);
       expect(result.valid).toBe(false);
-      expect(result.errors.some(e => e.includes('有效的数字'))).toBe(true);
+      expect(result.errors.some((e) => e.includes('有效的数字'))).toBe(true);
     });
 
     it('应该拒绝 NaN', () => {
@@ -82,19 +82,19 @@ describe('Input Validator', () => {
     it('应该验证整数', () => {
       const result = validateNumber(3.14, { integer: true });
       expect(result.valid).toBe(false);
-      expect(result.errors.some(e => e.includes('整数'))).toBe(true);
+      expect(result.errors.some((e) => e.includes('整数'))).toBe(true);
     });
 
     it('应该验证最小值', () => {
       const result = validateNumber(5, { min: 10 });
       expect(result.valid).toBe(false);
-      expect(result.errors.some(e => e.includes('不能小于'))).toBe(true);
+      expect(result.errors.some((e) => e.includes('不能小于'))).toBe(true);
     });
 
     it('应该验证最大值', () => {
       const result = validateNumber(100, { max: 50 });
       expect(result.valid).toBe(false);
-      expect(result.errors.some(e => e.includes('不能大于'))).toBe(true);
+      expect(result.errors.some((e) => e.includes('不能大于'))).toBe(true);
     });
 
     it('应该接受范围内的数字', () => {
@@ -172,11 +172,9 @@ describe('Input Validator', () => {
     });
 
     it('应该检测数组中的无效项', () => {
-      const result = validateArray(['valid', ''], (item) =>
-        validateString(item, { minLength: 1 })
-      );
+      const result = validateArray(['valid', ''], (item) => validateString(item, { minLength: 1 }));
       expect(result.valid).toBe(false);
-      expect(result.errors.some(e => e.includes('[1]:'))).toBe(true);
+      expect(result.errors.some((e) => e.includes('[1]:'))).toBe(true);
     });
   });
 

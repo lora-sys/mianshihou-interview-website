@@ -4,25 +4,152 @@ const logger = createLogger('InputValidator');
 
 // SQL 关键词列表（不区分大小写）
 const SQL_KEYWORDS = [
-  'SELECT', 'INSERT', 'UPDATE', 'DELETE', 'DROP', 'ALTER', 'CREATE', 'TRUNCATE',
-  'UNION', 'WHERE', 'AND', 'OR', 'XOR', 'NOT', 'LIKE', 'IN', 'BETWEEN', 'IS',
-  'NULL', 'TRUE', 'FALSE', 'JOIN', 'INNER', 'LEFT', 'RIGHT', 'OUTER', 'FULL',
-  'CROSS', 'ON', 'GROUP', 'BY', 'HAVING', 'ORDER', 'LIMIT', 'OFFSET', 'DISTINCT',
-  'ALL', 'ANY', 'SOME', 'EXISTS', 'CASE', 'WHEN', 'THEN', 'ELSE', 'END', 'AS',
-  'FROM', 'INTO', 'VALUES', 'SET', 'TABLE', 'DATABASE', 'SCHEMA', 'INDEX',
-  'VIEW', 'PROCEDURE', 'FUNCTION', 'TRIGGER', 'CONSTRAINT', 'PRIMARY', 'KEY',
-  'FOREIGN', 'REFERENCES', 'UNIQUE', 'CHECK', 'DEFAULT', 'CASCADE', 'RESTRICT',
-  'NO', 'ACTION', 'SET', 'NULL', 'COMMENT', 'GRANT', 'REVOKE', 'COMMIT',
-  'ROLLBACK', 'TRANSACTION', 'BEGIN', 'SAVEPOINT', 'RELEASE', 'LOCK', 'UNLOCK',
-  'DESC', 'ASC', 'WITH', 'RECURSIVE', 'WINDOW', 'OVER', 'PARTITION', 'ROWS',
-  'RANGE', 'UNBOUNDED', 'PRECEDING', 'FOLLOWING', 'CURRENT', 'ROW', 'EXCLUDE',
-  'TIES', 'NO', 'OTHERS', 'FIRST', 'LAST', 'RANK', 'DENSE_RANK', 'ROW_NUMBER',
-  'LEAD', 'LAG', 'NTILE', 'CUME_DIST', 'PERCENT_RANK', 'PERCENTILE_CONT',
-  'PERCENTILE_DISC', 'ARRAY', 'ROW', 'JSON', 'JSONB', 'XML', 'HSTORE', 'UUID',
-  'TEXT', 'INTEGER', 'BIGINT', 'SMALLINT', 'DECIMAL', 'NUMERIC', 'REAL',
-  'DOUBLE', 'PRECISION', 'FLOAT', 'BOOLEAN', 'DATE', 'TIME', 'TIMESTAMP',
-  'INTERVAL', 'BYTEA', 'BIT', 'VARBIT', 'CHAR', 'VARCHAR', 'NCHAR', 'NVARCHAR',
-  'CLOB', 'BLOB', 'BINARY', 'VARBINARY',
+  'SELECT',
+  'INSERT',
+  'UPDATE',
+  'DELETE',
+  'DROP',
+  'ALTER',
+  'CREATE',
+  'TRUNCATE',
+  'UNION',
+  'WHERE',
+  'AND',
+  'OR',
+  'XOR',
+  'NOT',
+  'LIKE',
+  'IN',
+  'BETWEEN',
+  'IS',
+  'NULL',
+  'TRUE',
+  'FALSE',
+  'JOIN',
+  'INNER',
+  'LEFT',
+  'RIGHT',
+  'OUTER',
+  'FULL',
+  'CROSS',
+  'ON',
+  'GROUP',
+  'BY',
+  'HAVING',
+  'ORDER',
+  'LIMIT',
+  'OFFSET',
+  'DISTINCT',
+  'ALL',
+  'ANY',
+  'SOME',
+  'EXISTS',
+  'CASE',
+  'WHEN',
+  'THEN',
+  'ELSE',
+  'END',
+  'AS',
+  'FROM',
+  'INTO',
+  'VALUES',
+  'SET',
+  'TABLE',
+  'DATABASE',
+  'SCHEMA',
+  'INDEX',
+  'VIEW',
+  'PROCEDURE',
+  'FUNCTION',
+  'TRIGGER',
+  'CONSTRAINT',
+  'PRIMARY',
+  'KEY',
+  'FOREIGN',
+  'REFERENCES',
+  'UNIQUE',
+  'CHECK',
+  'DEFAULT',
+  'CASCADE',
+  'RESTRICT',
+  'NO',
+  'ACTION',
+  'SET',
+  'NULL',
+  'COMMENT',
+  'GRANT',
+  'REVOKE',
+  'COMMIT',
+  'ROLLBACK',
+  'TRANSACTION',
+  'BEGIN',
+  'SAVEPOINT',
+  'RELEASE',
+  'LOCK',
+  'UNLOCK',
+  'DESC',
+  'ASC',
+  'WITH',
+  'RECURSIVE',
+  'WINDOW',
+  'OVER',
+  'PARTITION',
+  'ROWS',
+  'RANGE',
+  'UNBOUNDED',
+  'PRECEDING',
+  'FOLLOWING',
+  'CURRENT',
+  'ROW',
+  'EXCLUDE',
+  'TIES',
+  'NO',
+  'OTHERS',
+  'FIRST',
+  'LAST',
+  'RANK',
+  'DENSE_RANK',
+  'ROW_NUMBER',
+  'LEAD',
+  'LAG',
+  'NTILE',
+  'CUME_DIST',
+  'PERCENT_RANK',
+  'PERCENTILE_CONT',
+  'PERCENTILE_DISC',
+  'ARRAY',
+  'ROW',
+  'JSON',
+  'JSONB',
+  'XML',
+  'HSTORE',
+  'UUID',
+  'TEXT',
+  'INTEGER',
+  'BIGINT',
+  'SMALLINT',
+  'DECIMAL',
+  'NUMERIC',
+  'REAL',
+  'DOUBLE',
+  'PRECISION',
+  'FLOAT',
+  'BOOLEAN',
+  'DATE',
+  'TIME',
+  'TIMESTAMP',
+  'INTERVAL',
+  'BYTEA',
+  'BIT',
+  'VARBIT',
+  'CHAR',
+  'VARCHAR',
+  'NCHAR',
+  'NVARCHAR',
+  'CLOB',
+  'BLOB',
+  'BINARY',
+  'VARBINARY',
 ];
 
 // 危险字符模式
@@ -86,7 +213,7 @@ function containsSQLKeywords(input: string): boolean {
     return false;
   }
   const upperInput = input.toUpperCase();
-  return SQL_KEYWORDS.some(keyword => upperInput.includes(keyword));
+  return SQL_KEYWORDS.some((keyword) => upperInput.includes(keyword));
 }
 
 /**
@@ -99,7 +226,7 @@ function containsDangerousPatterns(input: string): string[] {
 
   const foundPatterns: string[] = [];
 
-  DANGEROUS_PATTERNS.forEach(pattern => {
+  DANGEROUS_PATTERNS.forEach((pattern) => {
     if (pattern.test(input)) {
       foundPatterns.push(pattern.source);
     }
@@ -204,7 +331,11 @@ export function validateNumber(
  */
 export function validateObject(
   input: Record<string, any>,
-  schema: Record<string, Partial<ValidationConfig> | { type: 'string' | 'number' | 'boolean'; config?: Partial<ValidationConfig> }>
+  schema: Record<
+    string,
+    | Partial<ValidationConfig>
+    | { type: 'string' | 'number' | 'boolean'; config?: Partial<ValidationConfig> }
+  >
 ): ValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
@@ -223,11 +354,11 @@ export function validateObject(
 
       if (type === 'string') {
         const result = validateString(value, config);
-        errors.push(...result.errors.map(e => `${key}: ${e}`));
-        warnings.push(...result.warnings.map(w => `${key}: ${w}`));
+        errors.push(...result.errors.map((e) => `${key}: ${e}`));
+        warnings.push(...result.warnings.map((w) => `${key}: ${w}`));
       } else if (type === 'number') {
         const result = validateNumber(value, config);
-        errors.push(...result.errors.map(e => `${key}: ${e}`));
+        errors.push(...result.errors.map((e) => `${key}: ${e}`));
       } else if (type === 'boolean') {
         if (typeof value !== 'boolean') {
           errors.push(`${key}: 必须是布尔值`);
@@ -236,8 +367,8 @@ export function validateObject(
     } else {
       // 简单的 string schema
       const result = validateString(value, fieldSchema);
-      errors.push(...result.errors.map(e => `${key}: ${e}`));
-      warnings.push(...result.warnings.map(w => `${key}: ${w}`));
+      errors.push(...result.errors.map((e) => `${key}: ${e}`));
+      warnings.push(...result.warnings.map((w) => `${key}: ${w}`));
     }
   }
 
@@ -260,8 +391,8 @@ export function validateArray<T>(
 
   input.forEach((item, index) => {
     const result = validator(item, index);
-    errors.push(...result.errors.map(e => `[${index}]: ${e}`));
-    warnings.push(...result.warnings.map(w => `[${index}]: ${w}`));
+    errors.push(...result.errors.map((e) => `[${index}]: ${e}`));
+    warnings.push(...result.warnings.map((w) => `[${index}]: ${w}`));
   });
 
   return {
@@ -291,7 +422,10 @@ export function sanitizeString(input: string): string {
 /**
  * 验证并清理输入
  */
-export function validateAndSanitize(input: string, config: Partial<ValidationConfig> = {}): {
+export function validateAndSanitize(
+  input: string,
+  config: Partial<ValidationConfig> = {}
+): {
   valid: boolean;
   sanitized: string;
   errors: string[];
@@ -321,11 +455,7 @@ export function isPotentialSQLInjection(input: string): boolean {
 /**
  * 日志记录验证失败
  */
-export function logValidationFailure(
-  input: any,
-  result: ValidationResult,
-  context?: string
-): void {
+export function logValidationFailure(input: any, result: ValidationResult, context?: string): void {
   if (!result.valid) {
     logger.warn('输入验证失败', {
       context,

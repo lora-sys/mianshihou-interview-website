@@ -9,7 +9,7 @@ import {
   saveFile,
   deleteFile,
   fileExists,
-  getFileInfo
+  getFileInfo,
 } from '../../lib/file-storage';
 import { promises as fs } from 'fs';
 import { join } from 'path';
@@ -56,13 +56,17 @@ describe('File Storage', () => {
     });
 
     it('应该支持自定义允许的 MIME 类型', () => {
-      expect(validateMimeType('image/jpeg', {
-        allowedMimeTypes: ['image/jpeg']
-      })).toBe(true);
+      expect(
+        validateMimeType('image/jpeg', {
+          allowedMimeTypes: ['image/jpeg'],
+        })
+      ).toBe(true);
 
-      expect(validateMimeType('image/png', {
-        allowedMimeTypes: ['image/jpeg']
-      })).toBe(false);
+      expect(
+        validateMimeType('image/png', {
+          allowedMimeTypes: ['image/jpeg'],
+        })
+      ).toBe(false);
     });
   });
 
@@ -87,13 +91,17 @@ describe('File Storage', () => {
     });
 
     it('应该支持自定义允许的扩展名', () => {
-      expect(validateExtension('test.jpg', {
-        allowedExtensions: ['.jpg']
-      })).toBe(true);
+      expect(
+        validateExtension('test.jpg', {
+          allowedExtensions: ['.jpg'],
+        })
+      ).toBe(true);
 
-      expect(validateExtension('test.png', {
-        allowedExtensions: ['.jpg']
-      })).toBe(false);
+      expect(
+        validateExtension('test.png', {
+          allowedExtensions: ['.jpg'],
+        })
+      ).toBe(false);
     });
   });
 
@@ -139,7 +147,7 @@ describe('File Storage', () => {
           filename: testFilename,
           data: testData,
           mimetype: 'text/plain',
-          size: testData.length
+          size: testData.length,
         },
         'test'
       );
@@ -153,32 +161,36 @@ describe('File Storage', () => {
     });
 
     it('应该拒绝无效的 MIME 类型', async () => {
-      await expect(saveFile(
-        {
-          filename: testFilename,
-          data: testData,
-          mimetype: 'application/x-shockwave-flash',
-          size: testData.length
-        },
-        'test'
-      )).rejects.toThrow('不支持的文件类型');
+      await expect(
+        saveFile(
+          {
+            filename: testFilename,
+            data: testData,
+            mimetype: 'application/x-shockwave-flash',
+            size: testData.length,
+          },
+          'test'
+        )
+      ).rejects.toThrow('不支持的文件类型');
     });
 
     it('应该拒绝超过大小限制的文件', async () => {
       const largeData = Buffer.alloc(10 * 1024 * 1024 + 1); // 10MB + 1 byte
 
-      await expect(saveFile(
-        {
-          filename: testFilename,
-          data: largeData,
-          mimetype: 'text/plain',
-          size: largeData.length
-        },
-        'test',
-        {
-          maxSize: 10 * 1024 * 1024
-        }
-      )).rejects.toThrow('文件大小超过限制');
+      await expect(
+        saveFile(
+          {
+            filename: testFilename,
+            data: largeData,
+            mimetype: 'text/plain',
+            size: largeData.length,
+          },
+          'test',
+          {
+            maxSize: 10 * 1024 * 1024,
+          }
+        )
+      ).rejects.toThrow('文件大小超过限制');
     });
 
     it('应该成功删除文件', async () => {
@@ -187,7 +199,7 @@ describe('File Storage', () => {
           filename: testFilename,
           data: testData,
           mimetype: 'text/plain',
-          size: testData.length
+          size: testData.length,
         },
         'test'
       );
@@ -218,7 +230,7 @@ describe('File Storage', () => {
           filename: testFilename,
           data: testData,
           mimetype: 'text/plain',
-          size: testData.length
+          size: testData.length,
         },
         'test'
       );
@@ -257,7 +269,7 @@ describe('File Storage', () => {
           filename: testFilename,
           data: testData,
           mimetype: 'image/jpeg',
-          size: testData.length
+          size: testData.length,
         },
         'test'
       );

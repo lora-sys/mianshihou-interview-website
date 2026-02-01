@@ -50,7 +50,12 @@ describe('Logger Aggregation', () => {
     it('应该能够只提供部分追踪信息', () => {
       const traceLogger1 = createLoggerWithTrace('TestContext', 'trace-123');
       const traceLogger2 = createLoggerWithTrace('TestContext', 'trace-123', 'user-123');
-      const traceLogger3 = createLoggerWithTrace('TestContext', undefined, undefined, 'request-123');
+      const traceLogger3 = createLoggerWithTrace(
+        'TestContext',
+        undefined,
+        undefined,
+        'request-123'
+      );
 
       expect(() => traceLogger1.info('测试部分追踪1')).not.toThrow();
       expect(() => traceLogger2.info('测试部分追踪2')).not.toThrow();
@@ -70,7 +75,9 @@ describe('Logger Aggregation', () => {
     it('应该能够记录 API 请求日志', () => {
       expect(() => {
         structuredLog.apiRequest('req-123', 'GET', '/api/users', 'user-123');
-        structuredLog.apiRequest('req-124', 'POST', '/api/posts', 'user-123', { title: '测试帖子' });
+        structuredLog.apiRequest('req-124', 'POST', '/api/posts', 'user-123', {
+          title: '测试帖子',
+        });
         structuredLog.apiRequest('req-125', 'DELETE', '/api/posts/123', 'user-123');
       }).not.toThrow();
     });

@@ -1,5 +1,16 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { checkIPAccess, addToWhitelist, removeFromWhitelist, addToBlacklist, removeFromBlacklist, getWhitelist, getBlacklist, clearWhitelist, clearBlacklist, getIPListStats } from '../lib/ip-list';
+import {
+  checkIPAccess,
+  addToWhitelist,
+  removeFromWhitelist,
+  addToBlacklist,
+  removeFromBlacklist,
+  getWhitelist,
+  getBlacklist,
+  clearWhitelist,
+  clearBlacklist,
+  getIPListStats,
+} from '../lib/ip-list';
 import { createLogger } from '../lib/logger';
 
 const logger = createLogger('IPControlMiddleware');
@@ -7,10 +18,7 @@ const logger = createLogger('IPControlMiddleware');
 /**
  * IP 控制中间件
  */
-export async function ipControlMiddleware(
-  request: FastifyRequest,
-  reply: FastifyReply
-) {
+export async function ipControlMiddleware(request: FastifyRequest, reply: FastifyReply) {
   const ip = request.ip;
 
   if (!ip) {
@@ -45,19 +53,21 @@ export async function ipControlMiddleware(
 /**
  * 创建 IP 白名单中间件
  */
-export function createIPWhitelistMiddleware(options: {
-  // 如果为 true，则白名单为空时拒绝所有访问
-  strict?: boolean;
-  // 跳过检查的路径
-  skipPaths?: string[];
-} = {}) {
+export function createIPWhitelistMiddleware(
+  options: {
+    // 如果为 true，则白名单为空时拒绝所有访问
+    strict?: boolean;
+    // 跳过检查的路径
+    skipPaths?: string[];
+  } = {}
+) {
   const { strict = false, skipPaths = [] } = options;
 
   return async function (request: FastifyRequest, reply: FastifyReply) {
     const ip = request.ip;
 
     // 跳过指定路径
-    if (skipPaths.some(path => request.url.startsWith(path))) {
+    if (skipPaths.some((path) => request.url.startsWith(path))) {
       return;
     }
 
@@ -91,17 +101,19 @@ export function createIPWhitelistMiddleware(options: {
 /**
  * 创建 IP 黑名单中间件
  */
-export function createIPBlacklistMiddleware(options: {
-  // 跳过检查的路径
-  skipPaths?: string[];
-} = {}) {
+export function createIPBlacklistMiddleware(
+  options: {
+    // 跳过检查的路径
+    skipPaths?: string[];
+  } = {}
+) {
   const { skipPaths = [] } = options;
 
   return async function (request: FastifyRequest, reply: FastifyReply) {
     const ip = request.ip;
 
     // 跳过指定路径
-    if (skipPaths.some(path => request.url.startsWith(path))) {
+    if (skipPaths.some((path) => request.url.startsWith(path))) {
       return;
     }
 

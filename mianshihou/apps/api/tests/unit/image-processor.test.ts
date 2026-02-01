@@ -8,7 +8,7 @@ import {
   getImageInfo,
   validateImageDimensions,
   AVATAR_DEFAULT_OPTIONS,
-  ATTACHMENT_DEFAULT_OPTIONS
+  ATTACHMENT_DEFAULT_OPTIONS,
 } from '../../lib/image-processor';
 
 // 创建测试图片缓冲区
@@ -22,8 +22,8 @@ beforeAll(async () => {
       width: 100,
       height: 100,
       channels: 3,
-      background: { r: 255, g: 0, b: 0 }
-    }
+      background: { r: 255, g: 0, b: 0 },
+    },
   })
     .png()
     .toBuffer();
@@ -34,8 +34,8 @@ beforeAll(async () => {
       width: 100,
       height: 100,
       channels: 3,
-      background: { r: 0, g: 255, b: 0 }
-    }
+      background: { r: 0, g: 255, b: 0 },
+    },
   })
     .jpeg()
     .toBuffer();
@@ -133,13 +133,7 @@ describe('Image Processor', () => {
     it('应该处理无效的图片数据', async () => {
       const invalidBuffer = Buffer.from('not an image');
 
-      const result = await validateImageDimensions(
-        invalidBuffer,
-        64,
-        2000,
-        64,
-        2000
-      );
+      const result = await validateImageDimensions(invalidBuffer, 64, 2000, 64, 2000);
 
       expect(result).toBe(false);
     });
@@ -156,7 +150,7 @@ describe('Image Processor', () => {
     it('应该调整图片大小', async () => {
       const processed = await processImage(testPNGBuffer, {
         width: 50,
-        height: 50
+        height: 50,
       });
 
       const metadata = await getImageInfo(processed);
@@ -167,7 +161,7 @@ describe('Image Processor', () => {
     it('应该支持 JPEG 格式输出', async () => {
       const processed = await processImage(testPNGBuffer, {
         format: 'jpeg',
-        quality: 90
+        quality: 90,
       });
 
       const metadata = await getImageInfo(processed);
@@ -177,7 +171,7 @@ describe('Image Processor', () => {
     it('应该支持 PNG 格式输出', async () => {
       const processed = await processImage(testJPEGBuffer, {
         format: 'png',
-        quality: 90
+        quality: 90,
       });
 
       const metadata = await getImageInfo(processed);
@@ -187,7 +181,7 @@ describe('Image Processor', () => {
     it('应该支持 WebP 格式输出', async () => {
       const processed = await processImage(testPNGBuffer, {
         format: 'webp',
-        quality: 85
+        quality: 85,
       });
 
       const metadata = await getImageInfo(processed);

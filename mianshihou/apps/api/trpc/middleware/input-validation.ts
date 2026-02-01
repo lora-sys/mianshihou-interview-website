@@ -72,7 +72,9 @@ export function stringValidationMiddleware(config: Partial<ValidationConfig> = {
 /**
  * 数字验证中间件
  */
-export function numberValidationMiddleware(config: { min?: number; max?: number; integer?: boolean } = {}) {
+export function numberValidationMiddleware(
+  config: { min?: number; max?: number; integer?: boolean } = {}
+) {
   return createInputValidationMiddleware((input) => {
     if (typeof input !== 'number') {
       return {
@@ -89,7 +91,11 @@ export function numberValidationMiddleware(config: { min?: number; max?: number;
  * 对象验证中间件
  */
 export function objectValidationMiddleware(
-  schema: Record<string, Partial<ValidationConfig> | { type: 'string' | 'number' | 'boolean'; config?: Partial<ValidationConfig> }>
+  schema: Record<
+    string,
+    | Partial<ValidationConfig>
+    | { type: 'string' | 'number' | 'boolean'; config?: Partial<ValidationConfig> }
+  >
 ) {
   return createInputValidationMiddleware((input) => {
     if (typeof input !== 'object' || input === null) {
@@ -112,9 +118,9 @@ export function sqlInjectionDetectionMiddleware() {
       if (typeof value === 'string') {
         return isPotentialSQLInjection(value);
       } else if (Array.isArray(value)) {
-        return value.some(item => checkForSQLInjection(item));
+        return value.some((item) => checkForSQLInjection(item));
       } else if (typeof value === 'object' && value !== null) {
-        return Object.values(value).some(item => checkForSQLInjection(item));
+        return Object.values(value).some((item) => checkForSQLInjection(item));
       }
       return false;
     };
@@ -171,8 +177,8 @@ export function batchValidationMiddleware<T>(
 
     for (let i = 0; i < input.length; i++) {
       const result = validator(input[i]);
-      errors.push(...result.errors.map(e => `[${i}]: ${e}`));
-      warnings.push(...result.warnings.map(w => `[${i}]: ${w}`));
+      errors.push(...result.errors.map((e) => `[${i}]: ${e}`));
+      warnings.push(...result.warnings.map((w) => `[${i}]: ${w}`));
 
       if (stopOnFirstError && errors.length > 0) {
         break;
@@ -240,9 +246,7 @@ export const searchValidationMiddleware = stringValidationMiddleware({
 /**
  * 通用输入验证中间件（组合多个验证器）
  */
-export function combinedValidationMiddleware(
-  validators: Array<(input: any) => ValidationResult>
-) {
+export function combinedValidationMiddleware(validators: Array<(input: any) => ValidationResult>) {
   return createInputValidationMiddleware((input) => {
     const allErrors: string[] = [];
     const allWarnings: string[] = [];

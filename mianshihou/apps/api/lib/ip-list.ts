@@ -51,12 +51,7 @@ function ipToNumber(ip: string): number {
  * 将数字转换为 IP 地址
  */
 function numberToIP(num: number): string {
-  return [
-    (num >>> 24) & 255,
-    (num >>> 16) & 255,
-    (num >>> 8) & 255,
-    num & 255,
-  ].join('.');
+  return [(num >>> 24) & 255, (num >>> 16) & 255, (num >>> 8) & 255, num & 255].join('.');
 }
 
 /**
@@ -102,7 +97,8 @@ function isIPInCIDR(ip: string, cidr: string): boolean {
  * 验证 IP 地址格式
  */
 export function isValidIP(ip: string): boolean {
-  const ipRegex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+  const ipRegex =
+    /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
   return ipRegex.test(ip);
 }
 
@@ -110,7 +106,8 @@ export function isValidIP(ip: string): boolean {
  * 验证 CIDR 格式
  */
 export function isValidCIDR(cidr: string): boolean {
-  const cidrRegex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\/(?:[0-9]|[1-2][0-9]|3[0-2])$/;
+  const cidrRegex =
+    /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\/(?:[0-9]|[1-2][0-9]|3[0-2])$/;
   return cidrRegex.test(cidr);
 }
 
@@ -308,7 +305,7 @@ export async function checkIPAccess(ip: string): Promise<IPCheckResult> {
 export async function getWhitelist(): Promise<IPListItem[]> {
   try {
     const items = await redis.hgetall(WHITELIST_KEY);
-    return Object.values(items).map(item => JSON.parse(item));
+    return Object.values(items).map((item) => JSON.parse(item));
   } catch (error) {
     logger.error('获取白名单失败', { error });
     return [];
@@ -321,7 +318,7 @@ export async function getWhitelist(): Promise<IPListItem[]> {
 export async function getBlacklist(): Promise<IPListItem[]> {
   try {
     const items = await redis.hgetall(BLACKLIST_KEY);
-    return Object.values(items).map(item => JSON.parse(item));
+    return Object.values(items).map((item) => JSON.parse(item));
   } catch (error) {
     logger.error('获取黑名单失败', { error });
     return [];

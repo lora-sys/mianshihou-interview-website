@@ -18,7 +18,7 @@ export const AVATAR_DEFAULT_OPTIONS: ImageProcessOptions = {
   height: 200,
   quality: 85,
   format: 'jpeg',
-  fit: 'cover'
+  fit: 'cover',
 };
 
 // 默认附件图片处理选项
@@ -27,7 +27,7 @@ export const ATTACHMENT_DEFAULT_OPTIONS: ImageProcessOptions = {
   height: 1080,
   quality: 80,
   format: 'jpeg',
-  fit: 'inside'
+  fit: 'inside',
 };
 
 // 检查是否为图片
@@ -40,13 +40,7 @@ export async function processImage(
   buffer: Buffer,
   options: ImageProcessOptions = {}
 ): Promise<Buffer> {
-  const {
-    width,
-    height,
-    quality = 85,
-    format = 'jpeg',
-    fit = 'cover'
-  } = options;
+  const { width, height, quality = 85, format = 'jpeg', fit = 'cover' } = options;
 
   try {
     let pipeline = sharp(buffer);
@@ -60,13 +54,13 @@ export async function processImage(
       targetWidth: width,
       targetHeight: height,
       format,
-      quality
+      quality,
     });
 
     // 只有在指定了尺寸时才调整大小
     if (width || height) {
       pipeline = pipeline.resize(width, height, {
-        fit
+        fit,
       });
     }
 
@@ -93,7 +87,7 @@ export async function processImage(
     logger.info('图片处理完成', {
       originalSize: `${(originalSize / 1024).toFixed(2)}KB`,
       processedSize: `${(processedSize / 1024).toFixed(2)}KB`,
-      compressionRatio: `${compressionRatio}%`
+      compressionRatio: `${compressionRatio}%`,
     });
 
     return processedBuffer;

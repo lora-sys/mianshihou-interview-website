@@ -145,20 +145,22 @@ export const userRouter = router({
 
     return success({ id: deletedUser.id }, '删除用户成功');
   }),
-},
 
   // Batch create users - requires admin
   batchCreate: adminProcedure
     .input(
       z.object({
-        users: z.array(
-          z.object({
-            userAccount: z.string().min(3).max(256),
-            userPassword: z.string().min(6).max(64),
-            email: z.string().email().optional(),
-            userName: z.string().min(1).max(256).optional(),
-          })
-        ).min(1).max(100),
+        users: z
+          .array(
+            z.object({
+              userAccount: z.string().min(3).max(256),
+              userPassword: z.string().min(6).max(64),
+              email: z.string().email().optional(),
+              userName: z.string().min(1).max(256).optional(),
+            })
+          )
+          .min(1)
+          .max(100),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -181,7 +183,7 @@ export const userRouter = router({
           if (existingUser) {
             results.failed.push({
               userAccount: userData.userAccount,
-              reason: '账号已存在'
+              reason: '账号已存在',
             });
             continue;
           }
@@ -191,12 +193,15 @@ export const userRouter = router({
         } catch (error) {
           results.failed.push({
             userAccount: userData.userAccount,
-            reason: error instanceof Error ? error.message : '创建失败'
+            reason: error instanceof Error ? error.message : '创建失败',
           });
         }
       }
 
-      return success(results, `批量创建用户完成：成功 ${results.success.length}，失败 ${results.failed.length}`);
+      return success(
+        results,
+        `批量创建用户完成：成功 ${results.success.length}，失败 ${results.failed.length}`
+      );
     }),
 
   // Batch delete users - requires admin
@@ -227,17 +232,20 @@ export const userRouter = router({
           } else {
             results.failed.push({
               id,
-              reason: '用户不存在或已删除'
+              reason: '用户不存在或已删除',
             });
           }
         } catch (error) {
           results.failed.push({
             id,
-            reason: error instanceof Error ? error.message : '删除失败'
+            reason: error instanceof Error ? error.message : '删除失败',
           });
         }
       }
 
-      return success(results, `批量删除用户完成：成功 ${results.success.length}，失败 ${results.failed.length}`);
+      return success(
+        results,
+        `批量删除用户完成：成功 ${results.success.length}，失败 ${results.failed.length}`
+      );
     }),
 });

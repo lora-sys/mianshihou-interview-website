@@ -15,7 +15,7 @@ describe('API Signature', () => {
   const testConfig = {
     secret: testSecret,
     timestampTolerance: 300000, // 5 分钟
-    nonceExpireTime: 300 // 5 分钟
+    nonceExpireTime: 300, // 5 分钟
   };
 
   beforeEach(async () => {
@@ -124,7 +124,7 @@ describe('API Signature', () => {
         timestamp: Date.now(),
         nonce: generateNonce(),
         body: 'test-body',
-        signature: 'invalid-signature'
+        signature: 'invalid-signature',
       };
 
       const result = await verifySignature(signatureData, testConfig);
@@ -139,7 +139,7 @@ describe('API Signature', () => {
         timestamp: oldTimestamp,
         nonce: generateNonce(),
         body: 'test-body',
-        signature: generateSignature(oldTimestamp, signatureData.nonce, 'test-body', testSecret)
+        signature: generateSignature(oldTimestamp, signatureData.nonce, 'test-body', testSecret),
       };
 
       const result = await verifySignature(signatureData, testConfig);
@@ -154,7 +154,7 @@ describe('API Signature', () => {
         timestamp: futureTimestamp,
         nonce: generateNonce(),
         body: 'test-body',
-        signature: generateSignature(futureTimestamp, signatureData.nonce, 'test-body', testSecret)
+        signature: generateSignature(futureTimestamp, signatureData.nonce, 'test-body', testSecret),
       };
 
       const result = await verifySignature(signatureData, testConfig);
@@ -196,7 +196,7 @@ describe('API Signature', () => {
         timestamp,
         nonce,
         body: 'test-body',
-        signature
+        signature,
       };
 
       const result = await verifySignature(signatureData, testConfig);
@@ -243,7 +243,7 @@ describe('API Signature', () => {
       const headers = {
         'x-timestamp': timestamp,
         'x-nonce': nonce,
-        'x-signature': signature
+        'x-signature': signature,
       };
 
       const result = extractSignatureFromHeaders(headers);
@@ -262,7 +262,7 @@ describe('API Signature', () => {
       const headers = {
         'x-timestamp': [timestamp],
         'x-nonce': [nonce],
-        'x-signature': [signature]
+        'x-signature': [signature],
       };
 
       const result = extractSignatureFromHeaders(headers);
@@ -275,7 +275,7 @@ describe('API Signature', () => {
 
     it('应该对缺少签名头返回 null', () => {
       const headers = {
-        'x-timestamp': '1234567890'
+        'x-timestamp': '1234567890',
       };
 
       const result = extractSignatureFromHeaders(headers);
@@ -334,7 +334,7 @@ describe('API Signature', () => {
       const customConfig = {
         secret: 'custom-secret',
         timestampTolerance: 10000, // 10 秒
-        nonceExpireTime: 10 // 10 秒
+        nonceExpireTime: 10, // 10 秒
       };
 
       const signatureData = createSignatureData('test-body', customConfig.secret);
@@ -348,7 +348,7 @@ describe('API Signature', () => {
       const customConfig = {
         secret: 'custom-secret',
         timestampTolerance: 10000, // 10 秒
-        nonceExpireTime: 10
+        nonceExpireTime: 10,
       };
 
       const oldTimestamp = Date.now() - 20000; // 20 秒前
@@ -359,7 +359,7 @@ describe('API Signature', () => {
         timestamp: oldTimestamp,
         nonce,
         body: 'test-body',
-        signature
+        signature,
       };
 
       const result = await verifySignature(signatureData, customConfig);
@@ -372,12 +372,12 @@ describe('API Signature', () => {
   describe('Security', () => {
     it('应该拒绝使用错误密钥的签名', async () => {
       const signatureData = createSignatureData('test-body', 'correct-secret');
-      
+
       // 使用错误的密钥验证
       const result = await verifySignature(signatureData, {
         secret: 'wrong-secret',
         timestampTolerance: 300000,
-        nonceExpireTime: 300
+        nonceExpireTime: 300,
       });
 
       expect(result.valid).toBe(false);
@@ -385,7 +385,7 @@ describe('API Signature', () => {
 
     it('应该拒绝被篡改的 body', async () => {
       const signatureData = createSignatureData('original-body', testSecret);
-      
+
       // 篡改 body
       signatureData.body = 'tampered-body';
 
@@ -396,7 +396,7 @@ describe('API Signature', () => {
 
     it('应该拒绝被篡改的 nonce', async () => {
       const signatureData = createSignatureData('test-body', testSecret);
-      
+
       // 使用正确的签名，但篡改 nonce
       const wrongNonce = generateNonce();
       const wrongSignature = generateSignature(
@@ -409,7 +409,7 @@ describe('API Signature', () => {
       const tamperedData = {
         ...signatureData,
         nonce: wrongNonce,
-        signature: wrongSignature
+        signature: wrongSignature,
       };
 
       const result = await verifySignature(tamperedData, testConfig);

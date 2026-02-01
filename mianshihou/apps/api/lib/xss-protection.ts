@@ -108,13 +108,32 @@ export function sanitizeHTML(
   try {
     const clean = dompurify.sanitize(input, {
       ALLOWED_TAGS: options.allowedTags || [
-        'b', 'i', 'u', 'strong', 'em', 'p', 'br', 'ul', 'ol', 'li',
-        'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'code', 'pre',
-        'a', 'span', 'div'
+        'b',
+        'i',
+        'u',
+        'strong',
+        'em',
+        'p',
+        'br',
+        'ul',
+        'ol',
+        'li',
+        'h1',
+        'h2',
+        'h3',
+        'h4',
+        'h5',
+        'h6',
+        'blockquote',
+        'code',
+        'pre',
+        'a',
+        'span',
+        'div',
       ],
       ALLOWED_ATTR: options.allowedAttributes || {
-        'a': ['href', 'title', 'target'],
-        'img': ['src', 'alt', 'title', 'width', 'height'],
+        a: ['href', 'title', 'target'],
+        img: ['src', 'alt', 'title', 'width', 'height'],
       },
       ALLOW_DATA_ATTR: false,
       ALLOW_UNKNOWN_PROTOCOLS: false,
@@ -138,10 +157,7 @@ export function sanitizeHTML(
 /**
  * 使用 sanitize-html 清理 HTML（更严格的控制）
  */
-export function sanitizeHTMLStrict(
-  input: string,
-  options: sanitizeHtml.IOptions = {}
-): string {
+export function sanitizeHTMLStrict(input: string, options: sanitizeHtml.IOptions = {}): string {
   if (typeof input !== 'string') {
     return String(input);
   }
@@ -191,7 +207,7 @@ export function containsXSS(input: string): boolean {
     /expression\s*\(/gi,
   ];
 
-  return xssPatterns.some(pattern => pattern.test(input));
+  return xssPatterns.some((pattern) => pattern.test(input));
 }
 
 /**
@@ -238,10 +254,8 @@ export function sanitizeObject<T extends Record<string, any>>(
 
       result[key] = processedValue;
     } else if (Array.isArray(value)) {
-      result[key] = value.map(item =>
-        typeof item === 'object' && item !== null
-          ? sanitizeObject(item, options)
-          : item
+      result[key] = value.map((item) =>
+        typeof item === 'object' && item !== null ? sanitizeObject(item, options) : item
       );
     } else if (typeof value === 'object' && value !== null) {
       result[key] = sanitizeObject(value, options);
@@ -256,17 +270,18 @@ export function sanitizeObject<T extends Record<string, any>>(
 /**
  * 清理数组中的所有字符串值
  */
-export function sanitizeArray<T>(
-  arr: T[],
-  sanitizer: (item: T) => T
-): T[] {
+export function sanitizeArray<T>(arr: T[], sanitizer: (item: T) => T): T[] {
   return arr.map(sanitizer);
 }
 
 /**
  * 创建安全的 HTML 字符串
  */
-export function createSafeHTML(tag: string, content: string, attributes: Record<string, string> = {}): string {
+export function createSafeHTML(
+  tag: string,
+  content: string,
+  attributes: Record<string, string> = {}
+): string {
   const sanitizedContent = sanitizeHTML(content);
   const sanitizedAttrs = Object.entries(attributes)
     .map(([key, value]) => {
@@ -302,7 +317,7 @@ export function isSafeURL(url: string): boolean {
 
     // 检查是否包含危险的协议
     const dangerousProtocols = ['javascript:', 'vbscript:', 'data:', 'file:'];
-    return !dangerousProtocols.some(protocol => url.toLowerCase().includes(protocol));
+    return !dangerousProtocols.some((protocol) => url.toLowerCase().includes(protocol));
   } catch (error) {
     logger.warn('URL 解析失败', { error, url });
     return false;
@@ -328,9 +343,35 @@ export const sanitizeOptions = {
   // 富文本编辑器（允许更多标签）
   richText: {
     allowedTags: [
-      'b', 'i', 'u', 'strong', 'em', 'p', 'br', 'ul', 'ol', 'li', 'a', 'img',
-      'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'code', 'pre', 'span', 'div',
-      'table', 'thead', 'tbody', 'tr', 'th', 'td'
+      'b',
+      'i',
+      'u',
+      'strong',
+      'em',
+      'p',
+      'br',
+      'ul',
+      'ol',
+      'li',
+      'a',
+      'img',
+      'h1',
+      'h2',
+      'h3',
+      'h4',
+      'h5',
+      'h6',
+      'blockquote',
+      'code',
+      'pre',
+      'span',
+      'div',
+      'table',
+      'thead',
+      'tbody',
+      'tr',
+      'th',
+      'td',
     ],
     allowedAttributes: {
       a: ['href', 'title', 'target', 'rel'],
@@ -364,6 +405,9 @@ export const sanitizeOptions = {
 /**
  * 使用预定义选项清理 HTML
  */
-export function sanitizeHTMLWithPreset(input: string, preset: keyof typeof sanitizeOptions): string {
+export function sanitizeHTMLWithPreset(
+  input: string,
+  preset: keyof typeof sanitizeOptions
+): string {
   return sanitizeHTML(input, sanitizeOptions[preset]);
 }

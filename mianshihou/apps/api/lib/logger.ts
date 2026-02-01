@@ -52,24 +52,25 @@ const logConfig: pino.LoggerOptions = {
     },
   }),
   // 生产环境添加 Loki transport
-  ...(process.env.NODE_ENV === 'production' && (() => {
-    const lokiConfig = getLokiConfig();
-    if (lokiConfig.enabled && lokiConfig.host) {
-      return {
-        transports: {
-          loki: pinoLoki({
-            host: lokiConfig.host,
-            basicAuth: lokiConfig.basicAuth,
-            labels: lokiConfig.labels,
-            timeout: lokiConfig.timeout,
-            batching: true,
-            interval: 5,
-          }),
-        },
-      };
-    }
-    return {};
-  })()),
+  ...(process.env.NODE_ENV === 'production' &&
+    (() => {
+      const lokiConfig = getLokiConfig();
+      if (lokiConfig.enabled && lokiConfig.host) {
+        return {
+          transports: {
+            loki: pinoLoki({
+              host: lokiConfig.host,
+              basicAuth: lokiConfig.basicAuth,
+              labels: lokiConfig.labels,
+              timeout: lokiConfig.timeout,
+              batching: true,
+              interval: 5,
+            }),
+          },
+        };
+      }
+      return {};
+    })()),
 };
 
 // 创建日志实例
@@ -111,76 +112,94 @@ export const log = {
 export const structuredLog = {
   // 用户操作日志
   userAction: (userId: string, action: string, data?: any) => {
-    logger.info({
-      userId,
-      action,
-      type: 'user_action',
-      timestamp: new Date().toISOString(),
-      ...data,
-    }, `User action: ${action}`);
+    logger.info(
+      {
+        userId,
+        action,
+        type: 'user_action',
+        timestamp: new Date().toISOString(),
+        ...data,
+      },
+      `User action: ${action}`
+    );
   },
 
   // API 请求日志
   apiRequest: (requestId: string, method: string, path: string, userId?: string, data?: any) => {
-    logger.info({
-      requestId,
-      method,
-      path,
-      userId,
-      type: 'api_request',
-      timestamp: new Date().toISOString(),
-      ...data,
-    }, `API request: ${method} ${path}`);
+    logger.info(
+      {
+        requestId,
+        method,
+        path,
+        userId,
+        type: 'api_request',
+        timestamp: new Date().toISOString(),
+        ...data,
+      },
+      `API request: ${method} ${path}`
+    );
   },
 
   // 数据库操作日志
   dbOperation: (operation: string, table: string, duration?: number, data?: any) => {
-    logger.info({
-      operation,
-      table,
-      duration,
-      type: 'db_operation',
-      timestamp: new Date().toISOString(),
-      ...data,
-    }, `DB operation: ${operation} on ${table}`);
+    logger.info(
+      {
+        operation,
+        table,
+        duration,
+        type: 'db_operation',
+        timestamp: new Date().toISOString(),
+        ...data,
+      },
+      `DB operation: ${operation} on ${table}`
+    );
   },
 
   // 缓存操作日志
   cacheOperation: (operation: string, key: string, hit?: boolean, data?: any) => {
-    logger.info({
-      operation,
-      key,
-      hit,
-      type: 'cache_operation',
-      timestamp: new Date().toISOString(),
-      ...data,
-    }, `Cache operation: ${operation} ${key}`);
+    logger.info(
+      {
+        operation,
+        key,
+        hit,
+        type: 'cache_operation',
+        timestamp: new Date().toISOString(),
+        ...data,
+      },
+      `Cache operation: ${operation} ${key}`
+    );
   },
 
   // 错误日志
   errorWithContext: (error: Error, context: string, userId?: string, requestId?: string) => {
-    logger.error({
-      error: {
-        message: error.message,
-        stack: error.stack,
-        name: error.name,
+    logger.error(
+      {
+        error: {
+          message: error.message,
+          stack: error.stack,
+          name: error.name,
+        },
+        context,
+        userId,
+        requestId,
+        type: 'error',
+        timestamp: new Date().toISOString(),
       },
-      context,
-      userId,
-      requestId,
-      type: 'error',
-      timestamp: new Date().toISOString(),
-    }, `Error in ${context}`);
+      `Error in ${context}`
+    );
   },
 
   // 性能日志
   performance: (operation: string, duration: number, data?: any) => {
-    logger.info({
-      operation,
-      duration,
-      type: 'performance',
-      timestamp: new Date().toISOString(),
-      ...data,
-    }, `Performance: ${operation} took ${duration}ms`);
+    logger.info(
+      {
+        operation,
+        duration,
+        type: 'performance',
+        timestamp: new Date().toISOString(),
+        ...data,
+      },
+      `Performance: ${operation} took ${duration}ms`
+    );
   },
 };

@@ -4,7 +4,7 @@ import {
   verifySignature,
   extractSignatureFromHeaders,
   SignatureConfig,
-  SignatureData
+  SignatureData,
 } from '../../lib/api-signature';
 import { createLogger } from '../../lib/logger';
 
@@ -17,18 +17,16 @@ const API_SECRET = process.env.API_SECRET || 'your-api-secret-change-this';
 const defaultSignatureConfig: SignatureConfig = {
   secret: API_SECRET,
   timestampTolerance: 300000, // 5 分钟
-  nonceExpireTime: 300 // 5 分钟
+  nonceExpireTime: 300, // 5 分钟
 };
 
 /**
  * 创建签名验证中间件
  */
-export function createSignatureMiddleware(
-  config?: Partial<SignatureConfig>
-) {
+export function createSignatureMiddleware(config?: Partial<SignatureConfig>) {
   const finalConfig: SignatureConfig = {
     ...defaultSignatureConfig,
-    ...config
+    ...config,
   };
 
   return middleware(async ({ ctx, next, type }) => {
@@ -38,7 +36,7 @@ export function createSignatureMiddleware(
     }
 
     const { req } = ctx as any;
-    
+
     if (!req) {
       logger.warn('缺少请求对象');
       return next();
@@ -51,7 +49,7 @@ export function createSignatureMiddleware(
       logger.warn('缺少签名头', { path: ctx._def?.path });
       throw new TRPCError({
         code: 'UNAUTHORIZED',
-        message: 'Missing signature headers'
+        message: 'Missing signature headers',
       });
     }
 
@@ -68,7 +66,7 @@ export function createSignatureMiddleware(
     // 添加 body 到签名数据
     const fullSignatureData: SignatureData = {
       ...signatureData,
-      body
+      body,
     };
 
     // 验证签名
@@ -78,12 +76,12 @@ export function createSignatureMiddleware(
       logger.warn('签名验证失败', {
         reason: result.reason,
         path: ctx._def?.path,
-        nonce: signatureData.nonce
+        nonce: signatureData.nonce,
       });
-      
+
       throw new TRPCError({
         code: 'UNAUTHORIZED',
-        message: result.reason || 'Invalid signature'
+        message: result.reason || 'Invalid signature',
       });
     }
 
@@ -103,7 +101,7 @@ export const signatureMiddleware = createSignatureMiddleware();
  */
 export const strictSignatureMiddleware = createSignatureMiddleware({
   timestampTolerance: 60000, // 1 分钟
-  nonceExpireTime: 60 // 1 分钟
+  nonceExpireTime: 60, // 1 分钟
 });
 
 /**
@@ -111,7 +109,7 @@ export const strictSignatureMiddleware = createSignatureMiddleware({
  */
 export const looseSignatureMiddleware = createSignatureMiddleware({
   timestampTolerance: 600000, // 10 分钟
-  nonceExpireTime: 600 // 10 分钟
+  nonceExpireTime: 600, // 10 分钟
 });
 
 /**
@@ -126,19 +124,16 @@ export interface SignatureInfo {
 /**
  * 生成签名信息供客户端使用
  */
-export function generateSignatureInfo(
-  body: any,
-  config?: Partial<SignatureConfig>
-): SignatureInfo {
+export function generateSignatureInfo(body: any, config?: Partial<SignatureConfig>): SignatureInfo {
   const finalConfig: SignatureConfig = {
     ...defaultSignatureConfig,
-    ...config
+    ...config,
   };
 
   const bodyStr = typeof body === 'string' ? body : JSON.stringify(body);
   const timestamp = Date.now();
   const nonce = Math.random().toString(36).substring(2, 15);
-  
+
   const message = `${timestamp}${nonce}${bodyStr}`;
   const hmac = require('crypto').createHmac('sha256', finalConfig.secret);
   hmac.update(message);
@@ -147,6 +142,6 @@ export function generateSignatureInfo(
   return {
     timestamp,
     nonce,
-    signature
+    signature,
   };
 }

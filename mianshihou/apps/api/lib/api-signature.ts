@@ -14,7 +14,7 @@ export interface SignatureResult {
 export interface SignatureConfig {
   secret: string;
   timestampTolerance?: number; // 时间戳容差（毫秒）
-  nonceExpireTime?: number;     // nonce 过期时间（秒）
+  nonceExpireTime?: number; // nonce 过期时间（秒）
 }
 
 // 签名数据接口
@@ -39,7 +39,7 @@ export function generateSignature(
 ): string {
   // 按照固定顺序拼接字符串
   const message = `${timestamp}${nonce}${body}`;
-  
+
   // 使用 HMAC-SHA256 生成签名
   const hmac = createHmac('sha256', secret);
   hmac.update(message);
@@ -56,7 +56,7 @@ export async function verifySignature(
   const {
     secret,
     timestampTolerance = 300000, // 默认 5 分钟
-    nonceExpireTime = 300 // 默认 5 分钟
+    nonceExpireTime = 300, // 默认 5 分钟
   } = config;
 
   const { timestamp, nonce, body = '', signature } = signatureData;
@@ -68,23 +68,23 @@ export async function verifySignature(
       timestamp,
       now,
       difference: Math.abs(now - timestamp),
-      tolerance: timestampTolerance
+      tolerance: timestampTolerance,
     });
     return {
       valid: false,
-      reason: 'Timestamp expired or future'
+      reason: 'Timestamp expired or future',
     };
   }
 
   // 2. 检查 nonce 是否已使用（防重放攻击）
   const nonceKey = `${NONCE_KEY_PREFIX}${nonce}`;
   const nonceExists = await redis.exists(nonceKey);
-  
+
   if (nonceExists) {
     logger.warn('Nonce 已使用', { nonce });
     return {
       valid: false,
-      reason: 'Nonce already used'
+      reason: 'Nonce already used',
     };
   }
 
@@ -101,11 +101,11 @@ export async function verifySignature(
     if (!isValid) {
       logger.warn('签名验证失败', {
         provided: signature,
-        expected: expectedSignature
+        expected: expectedSignature,
       });
       return {
         valid: false,
-        reason: 'Invalid signature'
+        reason: 'Invalid signature',
       };
     }
 
@@ -115,13 +115,13 @@ export async function verifySignature(
     logger.debug('签名验证成功', { nonce, timestamp });
 
     return {
-      valid: true
+      valid: true,
     };
   } catch (error) {
     logger.error('签名验证过程出错', { error });
     return {
       valid: false,
-      reason: 'Signature verification failed'
+      reason: 'Signature verification failed',
     };
   }
 }
@@ -141,10 +141,7 @@ export function generateNonce(length: number = 32): string {
 /**
  * 创建签名数据
  */
-export function createSignatureData(
-  body: string,
-  secret: string
-): SignatureData {
+export function createSignatureData(body: string, secret: string): SignatureData {
   const timestamp = Date.now();
   const nonce = generateNonce();
   const signature = generateSignature(timestamp, nonce, body, secret);
@@ -153,7 +150,7 @@ export function createSignatureData(
     timestamp,
     nonce,
     body,
-    signature
+    signature,
   };
 }
 
@@ -171,7 +168,7 @@ export function extractSignatureFromHeaders(
     logger.warn('缺少签名头', {
       hasTimestamp: !!timestamp,
       hasNonce: !!nonce,
-      hasSignature: !!signature
+      hasSignature: !!signature,
     });
     return null;
   }
@@ -179,7 +176,7 @@ export function extractSignatureFromHeaders(
   return {
     timestamp: parseInt(timestamp as string, 10),
     nonce: nonce as string,
-    signature: signature as string
+    signature: signature as string,
   };
 }
 
@@ -208,28 +205,29 @@ export async function getNonceStats(): Promise<{
 }> {
   try {
     const allKeys = await redis.keys(`${NONCE_KEY_PREFIX}*`);
-    
+
     // 获取最近 5 分钟的 nonce
     const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
     const recentKeys = await redis.keys(`${NONCE_KEY_PREFIX}*`);
-    
+
     let recentCount = 0;
     for (const key of recentKeys) {
       const ttl = await redis.ttl(key);
-      if (ttl > 240) { // 5 分钟 = 300 秒，剩余 > 240 秒说明是最近 5 分钟内的
+      if (ttl > 240) {
+        // 5 分钟 = 300 秒，剩余 > 240 秒说明是最近 5 分钟内的
         recentCount++;
       }
     }
 
     return {
       total: allKeys.length,
-      recent: recentCount
+      recent: recentCount,
     };
   } catch (error) {
     logger.error('获取 nonce 统计失败', { error });
     return {
       total: 0,
-      recent: 0
+      recent: 0,
     };
   }
 }

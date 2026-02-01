@@ -7,13 +7,13 @@ import {
   fileExists,
   getFileInfo,
   ALLOWED_MIME_TYPES,
-  FILE_SIZE_LIMITS
+  FILE_SIZE_LIMITS,
 } from '../../lib/file-storage';
 import {
   processAvatar,
   processAttachmentImage,
   isImage,
-  validateImageDimensions
+  validateImageDimensions,
 } from '../../lib/image-processor';
 import { createLogger } from '../../lib/logger';
 
@@ -27,7 +27,7 @@ export const uploadRouter = t.router({
       z.object({
         filename: z.string(),
         data: z.string().base64(), // Base64 编码的文件数据
-        mimetype: z.string()
+        mimetype: z.string(),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -50,9 +50,7 @@ export const uploadRouter = t.router({
 
         // 验证文件大小
         if (buffer.length > FILE_SIZE_LIMITS.avatar) {
-          throw new Error(
-            `头像文件大小不能超过 ${FILE_SIZE_LIMITS.avatar / 1024 / 1024}MB`
-          );
+          throw new Error(`头像文件大小不能超过 ${FILE_SIZE_LIMITS.avatar / 1024 / 1024}MB`);
         }
 
         // 验证图片尺寸（最小 64x64）
@@ -77,32 +75,30 @@ export const uploadRouter = t.router({
             filename,
             data: processedBuffer,
             mimetype,
-            size: processedBuffer.length
+            size: processedBuffer.length,
           },
           'avatar',
           {
-            allowedMimeTypes: Object.keys(ALLOWED_MIME_TYPES).filter((k) =>
-              k.startsWith('image/')
-            ),
-            maxSize: FILE_SIZE_LIMITS.avatar
+            allowedMimeTypes: Object.keys(ALLOWED_MIME_TYPES).filter((k) => k.startsWith('image/')),
+            maxSize: FILE_SIZE_LIMITS.avatar,
           }
         );
 
         logger.info('头像上传成功', {
           userId,
           filename: fileInfo.filename,
-          size: fileInfo.size
+          size: fileInfo.size,
         });
 
         return {
           success: true,
-          file: fileInfo
+          file: fileInfo,
         };
       } catch (error) {
         logger.error('头像上传失败', {
           userId,
           filename,
-          error: error instanceof Error ? error.message : 'Unknown error'
+          error: error instanceof Error ? error.message : 'Unknown error',
         });
 
         throw new Error(
@@ -117,7 +113,7 @@ export const uploadRouter = t.router({
       z.object({
         filename: z.string(),
         data: z.string().base64(),
-        mimetype: z.string()
+        mimetype: z.string(),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -135,9 +131,7 @@ export const uploadRouter = t.router({
 
         // 验证文件大小
         if (buffer.length > FILE_SIZE_LIMITS.attachment) {
-          throw new Error(
-            `附件文件大小不能超过 ${FILE_SIZE_LIMITS.attachment / 1024 / 1024}MB`
-          );
+          throw new Error(`附件文件大小不能超过 ${FILE_SIZE_LIMITS.attachment / 1024 / 1024}MB`);
         }
 
         // 如果是图片，进行压缩处理
@@ -151,29 +145,29 @@ export const uploadRouter = t.router({
             filename,
             data: buffer,
             mimetype,
-            size: buffer.length
+            size: buffer.length,
           },
           'attachment',
           {
-            maxSize: FILE_SIZE_LIMITS.attachment
+            maxSize: FILE_SIZE_LIMITS.attachment,
           }
         );
 
         logger.info('附件上传成功', {
           userId,
           filename: fileInfo.filename,
-          size: fileInfo.size
+          size: fileInfo.size,
         });
 
         return {
           success: true,
-          file: fileInfo
+          file: fileInfo,
         };
       } catch (error) {
         logger.error('附件上传失败', {
           userId,
           filename,
-          error: error instanceof Error ? error.message : 'Unknown error'
+          error: error instanceof Error ? error.message : 'Unknown error',
         });
 
         throw new Error(
@@ -187,7 +181,7 @@ export const uploadRouter = t.router({
     .input(
       z.object({
         filename: z.string(),
-        type: z.enum(['avatar', 'attachment'])
+        type: z.enum(['avatar', 'attachment']),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -208,12 +202,12 @@ export const uploadRouter = t.router({
           logger.info('文件删除成功', {
             userId,
             filename,
-            type
+            type,
           });
 
           return {
             success: true,
-            message: '文件删除成功'
+            message: '文件删除成功',
           };
         } else {
           throw new Error('文件删除失败');
@@ -223,7 +217,7 @@ export const uploadRouter = t.router({
           userId,
           filename,
           type,
-          error: error instanceof Error ? error.message : 'Unknown error'
+          error: error instanceof Error ? error.message : 'Unknown error',
         });
 
         throw new Error(
@@ -237,7 +231,7 @@ export const uploadRouter = t.router({
     .input(
       z.object({
         filename: z.string(),
-        type: z.enum(['avatar', 'attachment'])
+        type: z.enum(['avatar', 'attachment']),
       })
     )
     .query(async ({ ctx, input }) => {
@@ -253,14 +247,14 @@ export const uploadRouter = t.router({
 
         return {
           success: true,
-          file: fileInfo
+          file: fileInfo,
         };
       } catch (error) {
         logger.error('获取文件信息失败', {
           userId,
           filename,
           type,
-          error: error instanceof Error ? error.message : 'Unknown error'
+          error: error instanceof Error ? error.message : 'Unknown error',
         });
 
         throw new Error(
@@ -273,12 +267,15 @@ export const uploadRouter = t.router({
   batchDeleteFiles: adminProcedure
     .input(
       z.object({
-        files: z.array(
-          z.object({
-            filename: z.string(),
-            type: z.enum(['avatar', 'attachment'])
-          })
-        ).min(1).max(100)
+        files: z
+          .array(
+            z.object({
+              filename: z.string(),
+              type: z.enum(['avatar', 'attachment']),
+            })
+          )
+          .min(1)
+          .max(100),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -287,7 +284,7 @@ export const uploadRouter = t.router({
 
       const results = {
         success: [] as string[],
-        failed: [] as { filename: string; type: string; error: string }[]
+        failed: [] as { filename: string; type: string; error: string }[],
       };
 
       for (const file of files) {
@@ -299,14 +296,14 @@ export const uploadRouter = t.router({
             results.failed.push({
               filename: file.filename,
               type: file.type,
-              error: '删除失败'
+              error: '删除失败',
             });
           }
         } catch (error) {
           results.failed.push({
             filename: file.filename,
             type: file.type,
-            error: error instanceof Error ? error.message : 'Unknown error'
+            error: error instanceof Error ? error.message : 'Unknown error',
           });
         }
       }
@@ -315,12 +312,12 @@ export const uploadRouter = t.router({
         userId,
         total: files.length,
         success: results.success.length,
-        failed: results.failed.length
+        failed: results.failed.length,
       });
 
       return {
         success: true,
-        results
+        results,
       };
-    })
+    }),
 });
