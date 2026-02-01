@@ -1,12 +1,15 @@
 import { withRetry, CircuitBreaker, CircuitBreakerOptions, RetryOptions } from '../../lib/retry';
 import { logger } from '../../lib/logger';
-import { middleware } from '../trpc';
+import { initTRPC } from '@trpc/server';
+
+// 创建一个独立的 tRPC 实例用于中间件，避免循环依赖
+const middlewareTRPC = initTRPC.create();
 
 /**
  * 为特定的 tRPC procedure 创建重试中间件
  */
 export function createRetryMiddleware(options: RetryOptions = {}) {
-  return middleware(async ({ next, path }) => {
+  return middlewareTRPC.middleware(async ({ next, path }) => {
     logger.info(`执行 procedure: ${path}`);
 
     try {
@@ -54,7 +57,7 @@ export function createCircuitBreakerMiddleware(
 ) {
   const circuitBreakers = new Map<string, CircuitBreaker>();
 
-  return middleware(async ({ next, path }) => {
+  return middlewareTRPC.middleware(async ({ next, path }) => {
     // 为每个 path 创建独立的断路器
     let circuitBreaker = circuitBreakers.get(path);
     if (!circuitBreaker) {
@@ -65,12 +68,9 @@ export function createCircuitBreakerMiddleware(
     try {
       return await circuitBreaker.execute(async () => {
         // 在断路器保护下，仍然可以重试
-        return await withRetry(
-          async () => {
-            return await next();
-          },
-          retryOptions
-        );
+        return await withRetry(async () => {
+          return await next();
+        }, retryOptions);
       });
     } catch (error) {
       if ((error as Error).message === 'Circuit breaker is OPEN') {
@@ -110,9 +110,8 @@ export const dbRetryMiddleware = createRetryMiddleware({
   jitter: true,
   shouldRetry: (error: any) => {
     // 数据库连接错误、死锁、超时等可以重试
-    const isConnectionError = error?.code === 'ECONNREFUSED' ||
-                              error?.code === 'ETIMEDOUT' ||
-                              error?.code === 'ENOTFOUND';
+    const isConnectionError =
+      error?.code === 'ECONNREFUSED' || error?.code === 'ETIMEDOUT' || error?.code === 'ENOTFOUND';
     const isDeadlock = error?.code === '40P01'; // PostgreSQL deadlock
     const isTimeout = error?.code === '57014'; // query_canceled
 
@@ -132,10 +131,11 @@ export const apiRetryMiddleware = createRetryMiddleware({
   shouldRetry: (error: any) => {
     // 5xx 错误、网络错误、超时可以重试
     const isServerError = error?.statusCode >= 500 || error?.status >= 500;
-    const isNetworkError = error?.code === 'ECONNREFUSED' ||
-                          error?.code === 'ETIMEDOUT' ||
-                          error?.code === 'ENOTFOUND' ||
-                          error?.code === 'ECONNRESET';
+    const isNetworkError =
+      error?.code === 'ECONNREFUSED' ||
+      error?.code === 'ETIMEDOUT' ||
+      error?.code === 'ENOTFOUND' ||
+      error?.code === 'ECONNRESET';
     const isTimeout = error?.code === 'TIMEOUT' || error?.message?.includes('timeout');
 
     return isServerError || isNetworkError || isTimeout;

@@ -31,15 +31,17 @@ const DEFAULT_RETRY_OPTIONS: Required<RetryOptions> = {
   jitter: true,
   shouldRetry: (error: any, attempt: number) => {
     // 默认只重试网络错误、超时和 5xx 错误
-    const isNetworkError = error?.code === 'ECONNREFUSED' ||
-                         error?.code === 'ETIMEDOUT' ||
-                         error?.code === 'ENOTFOUND' ||
-                         error?.code === 'ECONNRESET';
+    const isNetworkError =
+      error?.code === 'ECONNREFUSED' ||
+      error?.code === 'ETIMEDOUT' ||
+      error?.code === 'ENOTFOUND' ||
+      error?.code === 'ECONNRESET';
     const isTimeout = error?.code === 'TIMEOUT' || error?.message?.includes('timeout');
     const isServerError = error?.statusCode >= 500 || error?.status >= 500;
-    const isRedisError = error?.message?.includes('READONLY') ||
-                        error?.message?.includes('NOREPLICAS') ||
-                        error?.message?.includes('LOADING');
+    const isRedisError =
+      error?.message?.includes('READONLY') ||
+      error?.message?.includes('NOREPLICAS') ||
+      error?.message?.includes('LOADING');
 
     return isNetworkError || isTimeout || isServerError || isRedisError;
   },
@@ -66,10 +68,7 @@ function calculateDelay(attempt: number, options: Required<RetryOptions>): numbe
 /**
  * 异步函数重试装饰器
  */
-export async function withRetry<T>(
-  fn: () => Promise<T>,
-  options: RetryOptions = {}
-): Promise<T> {
+export async function withRetry<T>(fn: () => Promise<T>, options: RetryOptions = {}): Promise<T> {
   const config = { ...DEFAULT_RETRY_OPTIONS, ...options };
 
   let lastError: any;
@@ -101,18 +100,14 @@ export async function withRetry<T>(
  * 延迟函数
  */
 function sleep(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 /**
  * 类方法重试装饰器
  */
 export function Retry(options: RetryOptions = {}) {
-  return function (
-    target: any,
-    propertyKey: string,
-    descriptor: PropertyDescriptor
-  ) {
+  return function (target: any, propertyKey: string, descriptor: PropertyDescriptor) {
     const originalMethod = descriptor.value;
 
     descriptor.value = async function (...args: any[]) {
@@ -126,10 +121,10 @@ export function Retry(options: RetryOptions = {}) {
 /**
  * 断路器状态
  */
-enum CircuitState {
-  CLOSED = 'CLOSED',     // 正常状态
-  OPEN = 'OPEN',         // 熔断状态
-  HALF_OPEN = 'HALF_OPEN' // 半开状态（尝试恢复）
+export enum CircuitState {
+  CLOSED = 'CLOSED', // 正常状态
+  OPEN = 'OPEN', // 熔断状态
+  HALF_OPEN = 'HALF_OPEN', // 半开状态（尝试恢复）
 }
 
 /**

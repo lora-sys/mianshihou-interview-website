@@ -95,6 +95,8 @@ const t = initTRPC.context<Context>().create({
 
 export const router = t.router;
 export const publicProcedure = t.procedure;
+export const middleware = t.middleware;
+export { t };
 
 // 导出重试中间件
 export {
