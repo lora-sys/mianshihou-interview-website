@@ -20,7 +20,7 @@ jobs:
           --health-cmd "redis-cli ping"
           --health-interval 10s
           --health-timeout 5s
-          --health-retries 5
+          --health-retries 10
         ports:
           - 6379:6379
     
@@ -35,26 +35,41 @@ jobs:
         with:
           bun-version: 1.2.21
 
-      # 3. 安装依赖
+      # 3. 等待 Redis 准备好
+      - name: Wait for Redis
+        run: |
+          echo "Waiting for Redis to be ready..."
+          for i in {1..30}; do
+            if redis-cli -h localhost -p 6379 ping > /dev/null 2>&1; then
+              echo "Redis is ready!"
+              exit 0
+            fi
+            echo "Attempt $i: Redis not ready yet..."
+            sleep 2
+          done
+          echo "Redis failed to start"
+          exit 1
+
+      # 4. 安装依赖
       - name: Install dependencies
         run: |
           cd mianshihou/apps/api
           bun install
 
-      # 4. 运行单元测试
+      # 5. 运行单元测试
       - name: Run unit tests
         run: |
           cd mianshihou/apps/api
           echo "Bun version: $(bun --version)"
           bun test tests/unit
 
-      # 5. 生成覆盖率报告
+      # 6. 生成覆盖率报告
       - name: Generate coverage
         run: |
           cd mianshihou/apps/api
           bun test tests/unit --coverage
 
-      # 6. 上传覆盖率报告
+      # 7. 上传覆盖率报告
       - name: Upload coverage
         uses: actions/upload-artifact@v4
         if: always()
@@ -74,7 +89,7 @@ jobs:
           --health-cmd "redis-cli ping"
           --health-interval 10s
           --health-timeout 5s
-          --health-retries 5
+          --health-retries 10
         ports:
           - 6379:6379
     
@@ -87,13 +102,28 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v1
 
-      # 3. 安装依赖
+      # 3. 等待 Redis 准备好
+      - name: Wait for Redis
+        run: |
+          echo "Waiting for Redis to be ready..."
+          for i in {1..30}; do
+            if redis-cli -h localhost -p 6379 ping > /dev/null 2>&1; then
+              echo "Redis is ready!"
+              exit 0
+            fi
+            echo "Attempt $i: Redis not ready yet..."
+            sleep 2
+          done
+          echo "Redis failed to start"
+          exit 1
+
+      # 4. 安装依赖
       - name: Install dependencies
         run: |
           cd mianshihou/apps/api
           bun install
 
-      # 4. 运行 TypeScript 检查
+      # 5. 运行 TypeScript 检查
       - name: TypeScript check
         run: |
           cd mianshihou/apps/api
