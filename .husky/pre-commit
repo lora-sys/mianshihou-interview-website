@@ -1,15 +1,4 @@
 #!/usr/bin/env sh
-cd mianshihou/apps/api
-
-# echo "🧪 运行单元测试..."
-# bun test tests/unit
-
-# if [ $? -ne 0 ]; then
-#   echo "❌ 单元测试失败，请修复后再提交"
-#   exit 1
-# fi
-
-# echo "✅ 单元测试通过"
 
 echo "✨ 检查暂存文件..."
 bunx lint-staged
