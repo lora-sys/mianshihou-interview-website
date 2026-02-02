@@ -8,6 +8,10 @@ import { throwIfNull, throwIf, throwIfNot } from '../../lib/exception';
 import { ErrorType } from '../../lib/errors';
 import { success, paginate, createPaginationMeta } from '../../lib/response-wrapper';
 
+function isAdmin(ctx: any) {
+  return ctx.user?.userRole === 'admin';
+}
+
 export const questionBankRouter = router({
   getRecent: protectedProcedure
     .input(
@@ -19,29 +23,24 @@ export const questionBankRouter = router({
       ctx.logger.info({ limit: input.limit }, '获取最近题库列表开始');
 
       try {
+        const bankConditions = [eq(questionBanks.isDelete, false)];
+        if (!isAdmin(ctx)) {
+          bankConditions.push(eq(questionBanks.userId, ctx.user.id));
+        }
+
         const recentBanks = await db
           .select()
           .from(questionBanks)
-          .where(eq(questionBanks.isDelete, false))
+          .where(and(...bankConditions))
           .orderBy(desc(questionBanks.createTime))
           .limit(input.limit);
 
         ctx.logger.info({ count: recentBanks.length }, '获取最近题库列表成功');
 
-        // 为每个题库查询题目数量
-        const banksWithCount = await Promise.all(
-          recentBanks.map(async (bank) => {
-            const [{ count }] = await db
-              .select({ count: sql<number>`count(*)` })
-              .from(questions)
-              .where(and(eq(questions.questionBankId, bank.id), eq(questions.isDelete, false)));
-
-            return {
-              ...bank,
-              questionCount: count || 0,
-            };
-          })
-        );
+        const banksWithCount = recentBanks.map((bank) => ({
+          ...bank,
+          questionCount: bank.questionCount ?? 0,
+        }));
 
         return success(banksWithCount, '获取最近题库列表成功');
       } catch (error) {
@@ -93,10 +92,15 @@ export const questionBankRouter = router({
         ctx.logger.info({ questionBankId: input.id }, '删除题库开始');
 
         try {
+          const conditions = [eq(questionBanks.id, input.id), eq(questionBanks.isDelete, false)];
+          if (!isAdmin(ctx)) {
+            conditions.push(eq(questionBanks.userId, ctx.user.id));
+          }
+
           const [questionBank] = await db
             .select()
             .from(questionBanks)
-            .where(and(eq(questionBanks.id, input.id), eq(questionBanks.isDelete, false)))
+            .where(and(...conditions))
             .limit(1);
 
           throwIfNull(questionBank, ErrorType.RESOURCE_NOT_FOUND, undefined, {
@@ -106,7 +110,7 @@ export const questionBankRouter = router({
           const [deletedQuestionBank] = await db
             .update(questionBanks)
             .set({ isDelete: true, updateTime: new Date() })
-            .where(eq(questionBanks.id, input.id))
+            .where(and(...conditions))
             .returning();
 
           ctx.logger.info({ questionBankId: deletedQuestionBank.id }, '题库删除成功');
@@ -133,10 +137,15 @@ export const questionBankRouter = router({
         try {
           const { id, ...updateData } = input;
 
+          const conditions = [eq(questionBanks.id, id), eq(questionBanks.isDelete, false)];
+          if (!isAdmin(ctx)) {
+            conditions.push(eq(questionBanks.userId, ctx.user.id));
+          }
+
           const [questionBank] = await db
             .select()
             .from(questionBanks)
-            .where(and(eq(questionBanks.id, id), eq(questionBanks.isDelete, false)))
+            .where(and(...conditions))
             .limit(1);
 
           throwIfNull(questionBank, ErrorType.RESOURCE_NOT_FOUND, undefined, {
@@ -149,7 +158,7 @@ export const questionBankRouter = router({
           const [updatedQuestionBank] = await db
             .update(questionBanks)
             .set({ ...updateData, updateTime: new Date() })
-            .where(eq(questionBanks.id, id))
+            .where(and(...conditions))
             .returning();
 
           ctx.logger.info(
@@ -169,10 +178,15 @@ export const questionBankRouter = router({
       .query(async ({ ctx, input }) => {
         ctx.logger.info({ questionBankId: input.id }, '根据ID查询题库');
 
+        const conditions = [eq(questionBanks.id, input.id), eq(questionBanks.isDelete, false)];
+        if (!isAdmin(ctx)) {
+          conditions.push(eq(questionBanks.userId, ctx.user.id));
+        }
+
         const [questionBank] = await db
           .select()
           .from(questionBanks)
-          .where(and(eq(questionBanks.id, input.id), eq(questionBanks.isDelete, false)))
+          .where(and(...conditions))
           .limit(1);
 
         throwIfNull(questionBank, ErrorType.RESOURCE_NOT_FOUND, undefined, {
@@ -200,7 +214,10 @@ export const questionBankRouter = router({
 
         const offset = (input.page - 1) * input.pageSize;
 
-        const conditions = [];
+        const conditions = [eq(questionBanks.isDelete, false)];
+        if (!isAdmin(ctx)) {
+          conditions.push(eq(questionBanks.userId, ctx.user.id));
+        }
 
         if (input.title) {
           conditions.push(like(questionBanks.title, `%${input.title}%`));
@@ -210,14 +227,14 @@ export const questionBankRouter = router({
           db
             .select()
             .from(questionBanks)
-            .where(conditions.length > 0 ? and(...conditions) : undefined)
+            .where(and(...conditions))
             .offset(offset)
             .limit(input.pageSize)
             .orderBy(desc(questionBanks.createTime)),
           db
             .select()
             .from(questionBanks)
-            .where(conditions.length > 0 ? and(...conditions) : undefined),
+            .where(and(...conditions)),
         ]);
 
         ctx.logger.info(
@@ -253,13 +270,24 @@ export const questionBankRouter = router({
 
           const result = await withTransaction(
             async ({ tx }) => {
+              const bankConditions = [
+                eq(questionBanks.id, input.questionBankId),
+                eq(questionBanks.isDelete, false),
+              ];
+              const questionConditions = [
+                eq(questions.id, input.questionId),
+                eq(questions.isDelete, false),
+              ];
+              if (!isAdmin(ctx)) {
+                bankConditions.push(eq(questionBanks.userId, ctx.user.id));
+                questionConditions.push(eq(questions.userId, ctx.user.id));
+              }
+
               // 检查题库是否存在
               const [questionBank] = await tx
                 .select()
                 .from(questionBanks)
-                .where(
-                  and(eq(questionBanks.id, input.questionBankId), eq(questionBanks.isDelete, false))
-                )
+                .where(and(...bankConditions))
                 .limit(1);
 
               throwIfNull(questionBank, ErrorType.RESOURCE_NOT_FOUND, undefined, {
@@ -270,7 +298,7 @@ export const questionBankRouter = router({
               const [question] = await tx
                 .select()
                 .from(questions)
-                .where(and(eq(questions.id, input.questionId), eq(questions.isDelete, false)))
+                .where(and(...questionConditions))
                 .limit(1);
 
               throwIfNull(question, ErrorType.RESOURCE_NOT_FOUND, undefined, {
@@ -308,7 +336,7 @@ export const questionBankRouter = router({
                   questionCount: sql`${questionBanks.questionCount} + 1`,
                   updateTime: new Date(),
                 })
-                .where(eq(questionBanks.id, input.questionBankId));
+                .where(and(...bankConditions));
 
               return newRelation;
             },
@@ -348,6 +376,24 @@ export const questionBankRouter = router({
 
           await withTransaction(
             async ({ tx }) => {
+              const bankConditions = [
+                eq(questionBanks.id, input.questionBankId),
+                eq(questionBanks.isDelete, false),
+              ];
+              if (!isAdmin(ctx)) {
+                bankConditions.push(eq(questionBanks.userId, ctx.user.id));
+              }
+
+              const [questionBank] = await tx
+                .select()
+                .from(questionBanks)
+                .where(and(...bankConditions))
+                .limit(1);
+
+              throwIfNull(questionBank, ErrorType.RESOURCE_NOT_FOUND, undefined, {
+                questionBankId: input.questionBankId,
+              });
+
               // 检查关联是否存在
               const [relation] = await tx
                 .select()
@@ -382,7 +428,7 @@ export const questionBankRouter = router({
                   questionCount: sql`${questionBanks.questionCount} - 1`,
                   updateTime: new Date(),
                 })
-                .where(eq(questionBanks.id, input.questionBankId));
+                .where(and(...bankConditions));
             },
             { logger: ctx.logger, operationName: 'removeQuestion' }
           );
@@ -419,10 +465,18 @@ export const questionBankRouter = router({
         const offset = (input.page - 1) * input.pageSize;
 
         // 检查题库是否存在
+        const bankConditions = [
+          eq(questionBanks.id, input.questionBankId),
+          eq(questionBanks.isDelete, false),
+        ];
+        if (!isAdmin(ctx)) {
+          bankConditions.push(eq(questionBanks.userId, ctx.user.id));
+        }
+
         const [questionBank] = await db
           .select()
           .from(questionBanks)
-          .where(and(eq(questionBanks.id, input.questionBankId), eq(questionBanks.isDelete, false)))
+          .where(and(...bankConditions))
           .limit(1);
 
         throwIfNull(questionBank, ErrorType.RESOURCE_NOT_FOUND, undefined, {
@@ -448,14 +502,26 @@ export const questionBankRouter = router({
           db
             .select()
             .from(questions)
-            .where(and(eq(questions.isDelete, false), inArray(questions.id, questionIds)))
+            .where(
+              and(
+                eq(questions.isDelete, false),
+                inArray(questions.id, questionIds),
+                ...(isAdmin(ctx) ? [] : [eq(questions.userId, ctx.user.id)])
+              )
+            )
             .offset(offset)
             .limit(input.pageSize)
             .orderBy(desc(questions.createTime)),
           db
             .select()
             .from(questions)
-            .where(and(eq(questions.isDelete, false), inArray(questions.id, questionIds))),
+            .where(
+              and(
+                eq(questions.isDelete, false),
+                inArray(questions.id, questionIds),
+                ...(isAdmin(ctx) ? [] : [eq(questions.userId, ctx.user.id)])
+              )
+            ),
         ]);
 
         ctx.logger.info(
@@ -542,6 +608,10 @@ export const questionBankRouter = router({
     .mutation(async ({ ctx, input }) => {
       ctx.logger.info({ ids: input.ids }, '批量删除题库开始');
 
+      if (!isAdmin(ctx)) {
+        throwIf(true, ErrorType.FORBIDDEN, '无权限');
+      }
+
       const results = {
         success: [] as number[],
         failed: [] as { id: number; reason: string }[],
@@ -598,17 +668,23 @@ export const questionBankRouter = router({
         page: z.number().min(1).default(1),
         pageSize: z.number().min(1).max(100).default(10),
         title: z.string().optional(),
+        userId: z.string().optional(),
       })
     )
     .query(async ({ ctx, input }) => {
       ctx.logger.info(
-        { page: input.page, pageSize: input.pageSize, title: input.title },
+        { page: input.page, pageSize: input.pageSize, title: input.title, userId: input.userId },
         '查询题库列表和题目数量'
       );
 
       const offset = (input.page - 1) * input.pageSize;
 
-      const conditions = [];
+      const conditions = [eq(questionBanks.isDelete, false)];
+      if (!isAdmin(ctx)) {
+        conditions.push(eq(questionBanks.userId, ctx.user.id));
+      } else if (input.userId) {
+        conditions.push(eq(questionBanks.userId, input.userId));
+      }
 
       if (input.title) {
         conditions.push(like(questionBanks.title, `%${input.title}%`));
@@ -619,14 +695,14 @@ export const questionBankRouter = router({
         db
           .select()
           .from(questionBanks)
-          .where(conditions.length > 0 ? and(...conditions) : undefined)
+          .where(and(...conditions))
           .offset(offset)
           .limit(input.pageSize)
           .orderBy(desc(questionBanks.createTime)),
         db
           .select()
           .from(questionBanks)
-          .where(conditions.length > 0 ? and(...conditions) : undefined),
+          .where(and(...conditions)),
       ]);
 
       ctx.logger.info(
@@ -638,9 +714,14 @@ export const questionBankRouter = router({
       const questionBanksWithCount = await Promise.all(
         data.map(async (qb) => {
           const [{ count }] = await db
-            .select({ count: questions.id })
-            .from(questions)
-            .where(and(eq(questions.questionBankId, qb.id), eq(questions.isDelete, false)));
+            .select({ count: sql<number>`count(*)` })
+            .from(questionBankQuestions)
+            .where(
+              and(
+                eq(questionBankQuestions.questionBankId, qb.id),
+                ...(isAdmin(ctx) ? [] : [eq(questionBankQuestions.userId, ctx.user.id)])
+              )
+            );
 
           return {
             ...qb,

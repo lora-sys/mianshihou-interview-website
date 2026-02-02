@@ -50,11 +50,6 @@ function NavItem({
 export function DashboardShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const sessionQuery = trpc.auth.getSession.useQuery();
-  const signOutMutation = trpc.auth.signOut.useMutation({
-    onSuccess() {
-      router.replace("/login");
-    },
-  });
 
   useEffect(() => {
     if (sessionQuery.isLoading) return;
@@ -130,13 +125,14 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
 
             <div className="rounded-2xl border bg-card/60 p-3 shadow-sm backdrop-blur">
               <Button
+                asChild
                 variant="ghost"
                 className="w-full justify-start gap-2 rounded-xl"
-                disabled={signOutMutation.isPending}
-                onClick={() => signOutMutation.mutate()}
               >
-                <LogOut className="h-4 w-4" />
-                {signOutMutation.isPending ? "退出中..." : "退出登录"}
+                <Link href="/logout">
+                  <LogOut className="h-4 w-4" />
+                  退出登录
+                </Link>
               </Button>
             </div>
           </div>

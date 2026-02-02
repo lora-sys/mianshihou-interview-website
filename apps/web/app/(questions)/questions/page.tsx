@@ -1,11 +1,5 @@
-"use client";
-
-import { trpc } from "@/lib/trpc/client";
 import Link from "next/link";
-import { useMemo, useState } from "react";
-import { toast } from "sonner";
-import { Pencil, Plus, Search, Trash2 } from "lucide-react";
-import { PageMessage, PageSpinner } from "@/components/states";
+import { Plus, Search, Trash2 } from "lucide-react";
 import {
   Badge,
   Button,
@@ -16,78 +10,58 @@ import {
   CardTitle,
   Input,
 } from "@repo/ui";
+import { trpcQuery } from "@/lib/trpc/server";
 
-const EMPTY_ITEMS: any[] = [];
+function parseTags(value: any): string[] {
+  if (!value) return [];
+  if (Array.isArray(value)) return value.map(String);
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) return parsed.map(String);
+    } catch {
+      return value
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+    }
+  }
+  return [];
+}
 
-export default function QuestionsPage() {
-  const [searchQuery, setSearchQuery] = useState("");
-  const utils = trpc.useUtils?.();
+function formatDate(value: any) {
+  if (!value) return "-";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "-";
+  return d.toLocaleDateString("zh-CN");
+}
 
-  const { data, isLoading, error, isFetching } = trpc.questions.list.useQuery({
+function normalizeSearchParams(
+  searchParams: Record<string, string | string[] | undefined> | undefined,
+) {
+  const qRaw = searchParams?.q;
+  const q = Array.isArray(qRaw) ? qRaw[0] : qRaw;
+  return { q: (q ?? "").trim() };
+}
+
+export default async function QuestionsPage({
+  searchParams,
+}: {
+  searchParams?: Record<string, string | string[] | undefined>;
+}) {
+  const { q } = normalizeSearchParams(searchParams);
+
+  const res = await trpcQuery("questions.list", {
     page: 1,
     pageSize: 50,
-    title: searchQuery.trim() ? searchQuery.trim() : undefined,
+    title: q ? q : undefined,
   });
 
-  const items = data?.data?.items ?? EMPTY_ITEMS;
-  const pagination = data?.data?.pagination;
-
-  const deleteMutation = trpc.questions.delete.useMutation({
-    onSuccess() {
-      toast.success("已删除");
-      void utils?.questions?.list?.invalidate?.();
-    },
-    onError(err: any) {
-      toast.error(err?.message ?? "删除失败");
-    },
-  });
-
-  const visibleItems = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
-    if (!q) return items;
-    return items.filter((it: any) => {
-      const title = String(it.title ?? "").toLowerCase();
-      const content = String(it.content ?? "").toLowerCase();
-      return title.includes(q) || content.includes(q);
-    });
-  }, [items, searchQuery]);
-
-  function parseTags(value: any): string[] {
-    if (!value) return [];
-    if (Array.isArray(value)) return value.map(String);
-    if (typeof value === "string") {
-      try {
-        const parsed = JSON.parse(value);
-        if (Array.isArray(parsed)) return parsed.map(String);
-      } catch {
-        return value
-          .split(",")
-          .map((s) => s.trim())
-          .filter(Boolean);
-      }
-    }
-    return [];
-  }
-
-  if (isLoading) {
-    return <PageSpinner label="加载题目列表..." />;
-  }
-
-  if (error) {
-    return (
-      <PageMessage
-        tone="danger"
-        title="加载题目列表失败"
-        description={(error as any).message}
-        actionLabel="返回仪表盘"
-        actionHref="/dashboard"
-      />
-    );
-  }
+  const items = res?.data?.items ?? [];
+  const pagination = res?.data?.pagination;
 
   return (
     <div className="space-y-6">
-      {/* 头部区域 */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
@@ -108,146 +82,129 @@ export default function QuestionsPage() {
         </Button>
       </div>
 
-      {/* 搜索框 */}
-      <div className="relative">
+      <form className="relative" action="/questions" method="GET">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <Input
           placeholder="搜索题目..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
+          name="q"
+          defaultValue={q}
           className="pl-10 h-11"
         />
-      </div>
+      </form>
 
-      {/* 统计信息 */}
-      {visibleItems.length > 0 && (
-        <div className="flex items-center gap-4 text-sm text-muted-foreground">
-          <span>当前 {visibleItems.length} 道</span>
-          {isFetching && <span>• 更新中...</span>}
-        </div>
-      )}
-
-      {/* 题目列表 */}
-      <div className="grid gap-4">
-        {visibleItems.length > 0 ? (
-          visibleItems.map((question: any, index: number) => {
-            const tags = parseTags(question.tags);
-            return (
-              <Card
-                key={question.id}
-                className="shadow-md hover:shadow-lg transition-all border-border/50"
-              >
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start gap-3">
-                        <div className="flex-shrink-0 h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-sm font-semibold text-primary">
-                          {index + 1}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <Link href={`/questions/${question.id}`}>
-                            <CardTitle className="text-lg hover:text-primary transition-colors line-clamp-1">
-                              {question.title}
-                            </CardTitle>
+      <Card className="shadow-sm">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0">
+          <div>
+            <CardTitle className="text-base">列表</CardTitle>
+            <CardDescription>
+              共 {pagination?.total ?? items.length} 道
+            </CardDescription>
+          </div>
+          <div className="text-xs text-muted-foreground">
+            {q ? `关键词：${q}` : ""}
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="border-t bg-muted/40">
+                <tr className="text-left">
+                  <th className="px-4 py-3 font-medium">标题</th>
+                  <th className="px-4 py-3 font-medium">标签</th>
+                  <th className="px-4 py-3 font-medium whitespace-nowrap">
+                    创建时间
+                  </th>
+                  <th className="px-4 py-3 font-medium w-40 text-right">
+                    操作
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {items.length > 0 ? (
+                  items.map((question: any) => {
+                    const tags = parseTags(question.tags).slice(0, 2);
+                    return (
+                      <tr key={question.id} className="hover:bg-accent/30">
+                        <td className="px-4 py-3">
+                          <Link
+                            href={`/questions/${question.id}`}
+                            className="font-medium hover:underline"
+                          >
+                            {question.title}
                           </Link>
-                          <div className="mt-3 flex flex-wrap gap-2">
-                            <Badge
-                              variant="outline"
-                              className="bg-primary/10 text-primary border-primary/20"
-                            >
-                              {question.answer ? "有答案" : "待补充"}
-                            </Badge>
-                            {question.questionBankId ? (
-                              <Badge variant="outline">
-                                题库 #{question.questionBankId}
-                              </Badge>
-                            ) : null}
-                            {tags.slice(0, 3).map((t: string) => (
-                              <Badge
-                                key={t}
-                                variant="outline"
-                                className="bg-muted/50"
-                              >
-                                {t}
-                              </Badge>
-                            ))}
-                            {tags.length > 3 ? (
-                              <Badge variant="outline" className="bg-muted/50">
-                                +{tags.length - 3}
-                              </Badge>
-                            ) : null}
+                          <div className="text-xs text-muted-foreground line-clamp-1 mt-1">
+                            {question.content}
                           </div>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex gap-1 flex-shrink-0">
-                      <Button
-                        asChild
-                        variant="ghost"
-                        size="icon"
-                        className="h-9 w-9 hover:bg-primary/10 hover:text-primary"
-                      >
-                        <Link href={`/questions/${question.id}/edit`}>
-                          <Pencil className="w-4 h-4" />
-                        </Link>
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-9 w-9 hover:bg-destructive/10 hover:text-destructive"
-                        onClick={() => {
-                          const ok = window.confirm("确定删除这道题吗？");
-                          if (!ok) return;
-                          deleteMutation.mutate({ id: Number(question.id) });
-                        }}
-                        disabled={deleteMutation.isPending}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <p className="text-muted-foreground text-sm line-clamp-2 leading-relaxed">
-                    {question.content}
-                  </p>
-                </CardContent>
-              </Card>
-            );
-          })
-        ) : (
-          <Card className="shadow-md">
-            <CardContent className="flex flex-col items-center justify-center py-16">
-              <div className="w-20 h-20 rounded-full bg-muted/50 flex items-center justify-center mb-4">
-                <svg
-                  className="w-10 h-10 text-muted-foreground/60"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={1.5}
-                    d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
-              </div>
-              <CardDescription className="text-base mb-4">
-                {searchQuery ? "没有找到匹配的题目" : "暂无题目"}
-              </CardDescription>
-              {!searchQuery && (
-                <Button asChild className="shadow-md" variant="outline">
-                  <Link href="/questions/new">
-                    <Plus className="w-4 h-4 mr-2" />
-                    创建第一个题目
-                  </Link>
-                </Button>
-              )}
-            </CardContent>
-          </Card>
-        )}
-      </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex flex-wrap gap-1">
+                            {tags.length > 0 ? (
+                              tags.map((t) => (
+                                <Badge
+                                  key={t}
+                                  variant="secondary"
+                                  className="text-xs"
+                                >
+                                  {t}
+                                </Badge>
+                              ))
+                            ) : (
+                              <span className="text-xs text-muted-foreground">
+                                -
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">
+                          {formatDate(question.createTime)}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center justify-end gap-2">
+                            <Button asChild size="sm" variant="outline">
+                              <Link href={`/questions/${question.id}`}>
+                                查看
+                              </Link>
+                            </Button>
+                            <form
+                              action={`/questions/${question.id}/delete`}
+                              method="POST"
+                            >
+                              {q ? (
+                                <input
+                                  type="hidden"
+                                  name="redirect"
+                                  value={`/questions?q=${encodeURIComponent(q)}`}
+                                />
+                              ) : null}
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                type="submit"
+                              >
+                                <Trash2 className="h-4 w-4 mr-1" />
+                                删除
+                              </Button>
+                            </form>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                ) : (
+                  <tr>
+                    <td
+                      className="px-4 py-10 text-center text-muted-foreground"
+                      colSpan={4}
+                    >
+                      {q ? "未找到匹配题目" : "暂无题目"}
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

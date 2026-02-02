@@ -1,4 +1,5 @@
 import { router, publicProcedure } from '../index';
+import { protectedProcedure } from '../middleware/auth';
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { auth } from '../../lib/auth';
@@ -9,6 +10,9 @@ import { headersFromRequest } from '../../lib/cookie-utils';
 import { success } from '../../lib/response-wrapper';
 import { sanitizeUser } from '../../lib/data-sanitizer';
 import { transformUser as transformUserField } from '../../lib/field-transformer';
+import { db } from '../../index';
+import { users } from '../../db/schema';
+import { and, eq, sql } from 'drizzle-orm';
 import {
   handleConcurrentLogin,
   getUserActiveDevices,
@@ -291,4 +295,60 @@ export const authRouter = router({
 
     return success(null, '已踢出所有其他设备');
   }),
+
+  promoteMeToAdmin: protectedProcedure
+    .input(
+      z
+        .object({
+          force: z.boolean().optional(),
+        })
+        .optional()
+    )
+    .mutation(async ({ ctx, input }) => {
+      if (process.env.NODE_ENV !== 'development') {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: '仅开发环境可用',
+        });
+      }
+
+      const host = String(ctx.req.headers.host ?? '');
+      const isLocalhost = host.startsWith('localhost') || host.startsWith('127.0.0.1');
+      if (!isLocalhost) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: '仅本地环境可用',
+        });
+      }
+
+      const [adminCountRes] = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(users)
+        .where(
+          and(
+            eq(users.isDelete, false),
+            eq(users.userRole, 'admin'),
+            sql`${users.email} is not null`
+          )
+        );
+
+      const adminCount = adminCountRes?.count ?? 0;
+      if (adminCount > 0 && !input?.force) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: '管理员已存在，禁止提升',
+        });
+      }
+
+      const [updated] = await db
+        .update(users)
+        .set({ userRole: 'admin', updateTime: new Date() })
+        .where(eq(users.id, ctx.user.id))
+        .returning();
+
+      throwIfNull(updated, ErrorType.USER_NOT_FOUND, undefined, { userId: ctx.user.id });
+
+      const transformedUser = transformUserField(sanitizeUser(updated));
+      return success(transformedUser, '已提升为管理员');
+    }),
 });

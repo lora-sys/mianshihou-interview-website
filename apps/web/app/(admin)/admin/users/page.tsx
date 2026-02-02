@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { Plus, Search, Trash2 } from "lucide-react";
 import {
+  Badge,
   Button,
   Card,
   CardContent,
@@ -10,66 +10,67 @@ import {
   Input,
 } from "@repo/ui";
 import { trpcQuery } from "@/lib/trpc/server";
-
-function formatDate(value: any) {
-  if (!value) return "-";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return "-";
-  return d.toLocaleDateString("zh-CN");
-}
+import { Search, Trash2 } from "lucide-react";
 
 function normalizeSearchParams(
   searchParams: Record<string, string | string[] | undefined> | undefined,
 ) {
   const qRaw = searchParams?.q;
+  const pageRaw = searchParams?.page;
   const q = Array.isArray(qRaw) ? qRaw[0] : qRaw;
-  return { q: (q ?? "").trim() };
+  const pageStr = Array.isArray(pageRaw) ? pageRaw[0] : pageRaw;
+  const page = Number(pageStr ?? "1");
+  return {
+    q: (q ?? "").trim(),
+    page: Number.isFinite(page) && page > 0 ? page : 1,
+  };
 }
 
-export default async function QuestionBanksPage({
+function formatDateTime(value: any) {
+  if (!value) return "-";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "-";
+  return d.toLocaleString("zh-CN");
+}
+
+export default async function AdminUsersPage({
   searchParams,
 }: {
   searchParams?: Record<string, string | string[] | undefined>;
 }) {
-  const { q } = normalizeSearchParams(searchParams);
+  const { q, page } = normalizeSearchParams(searchParams);
 
-  const res = await trpcQuery("questionBank.listWithQuestionCount", {
-    page: 1,
+  const res = await trpcQuery("users.list", {
+    page,
     pageSize: 50,
-    title: q ? q : undefined,
+    keyword: q ? q : undefined,
   });
 
   const items = res?.data?.items ?? [];
   const pagination = res?.data?.pagination;
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
-            题库列表
-          </h1>
-          <p className="text-muted-foreground mt-2">
-            管理和查看所有题库
-            {pagination
-              ? `（第 ${pagination.page} / ${pagination.totalPages} 页）`
-              : ""}
+    <div className="space-y-4">
+      <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+        <div className="space-y-1">
+          <h2 className="text-xl font-semibold tracking-tight">用户管理</h2>
+          <p className="text-sm text-muted-foreground">
+            搜索、查看与删除用户（删除为软删）。
           </p>
         </div>
-        <Button asChild className="shadow-md">
-          <Link href="/question-banks/new">
-            <Plus className="w-4 h-4 mr-2" />
-            新增题库
-          </Link>
-        </Button>
+        <div className="text-sm text-muted-foreground">
+          {pagination
+            ? `第 ${pagination.page} / ${pagination.totalPages} 页`
+            : ""}
+        </div>
       </div>
 
-      <form className="relative max-w-md" action="/question-banks" method="GET">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+      <form className="relative max-w-md" action="/admin/users" method="GET">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
-          placeholder="搜索题库..."
           name="q"
           defaultValue={q}
+          placeholder="按昵称搜索..."
           className="pl-10 h-11"
         />
       </form>
@@ -91,57 +92,62 @@ export default async function QuestionBanksPage({
             <table className="w-full text-sm">
               <thead className="border-t bg-muted/40">
                 <tr className="text-left">
-                  <th className="px-4 py-3 font-medium">标题</th>
+                  <th className="px-4 py-3 font-medium">昵称</th>
+                  <th className="px-4 py-3 font-medium">邮箱</th>
                   <th className="px-4 py-3 font-medium whitespace-nowrap">
-                    题目数
+                    角色
+                  </th>
+                  <th className="px-4 py-3 font-medium whitespace-nowrap">
+                    状态
                   </th>
                   <th className="px-4 py-3 font-medium whitespace-nowrap">
                     创建时间
                   </th>
-                  <th className="px-4 py-3 font-medium w-40 text-right">
+                  <th className="px-4 py-3 font-medium w-44 text-right">
                     操作
                   </th>
                 </tr>
               </thead>
               <tbody className="divide-y">
                 {items.length > 0 ? (
-                  items.map((bank: any) => (
-                    <tr key={bank.id} className="hover:bg-accent/30">
+                  items.map((u: any) => (
+                    <tr key={u.id} className="hover:bg-accent/30">
                       <td className="px-4 py-3">
-                        <Link
-                          href={`/question-banks/${bank.id}`}
-                          className="font-medium hover:underline"
-                        >
-                          {bank.title}
-                        </Link>
-                        <div className="text-xs text-muted-foreground line-clamp-1 mt-1">
-                          {bank.description || "暂无描述"}
+                        <div className="font-medium">{u.userName || "-"}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {u.userAccount || u.id}
                         </div>
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">
-                        {bank.questionCount ?? 0}
+                      <td className="px-4 py-3 text-muted-foreground">
+                        {u.email || "-"}
+                      </td>
+                      <td className="px-4 py-3">
+                        <Badge variant="outline">{u.userRole}</Badge>
+                      </td>
+                      <td className="px-4 py-3">
+                        <Badge variant="outline">{u.status}</Badge>
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">
-                        {formatDate(bank.createTime)}
+                        {formatDateTime(u.createTime)}
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-2">
                           <Button asChild size="sm" variant="outline">
-                            <Link href={`/question-banks/${bank.id}`}>
-                              查看
-                            </Link>
+                            <Link href={`/admin/users/${u.id}`}>查看</Link>
                           </Button>
                           <form
-                            action={`/question-banks/${bank.id}/delete`}
+                            action={`/admin/users/${u.id}/delete`}
                             method="POST"
                           >
-                            {q ? (
-                              <input
-                                type="hidden"
-                                name="redirect"
-                                value={`/question-banks?q=${encodeURIComponent(q)}`}
-                              />
-                            ) : null}
+                            <input
+                              type="hidden"
+                              name="redirect"
+                              value={
+                                q
+                                  ? `/admin/users?q=${encodeURIComponent(q)}`
+                                  : "/admin/users"
+                              }
+                            />
                             <Button
                               size="sm"
                               variant="destructive"
@@ -159,9 +165,9 @@ export default async function QuestionBanksPage({
                   <tr>
                     <td
                       className="px-4 py-10 text-center text-muted-foreground"
-                      colSpan={4}
+                      colSpan={6}
                     >
-                      {q ? "未找到匹配题库" : "暂无题库"}
+                      {q ? "未找到匹配用户" : "暂无用户"}
                     </td>
                   </tr>
                 )}

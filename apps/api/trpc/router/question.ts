@@ -8,6 +8,10 @@ import { throwIfNull, throwIf } from '../../lib/exception';
 import { ErrorType } from '../../lib/errors';
 import { success, paginate, createPaginationMeta } from '../../lib/response-wrapper';
 
+function isAdmin(ctx: any) {
+  return ctx.user?.userRole === 'admin';
+}
+
 export const questionRouter = router({
   getRecent: protectedProcedure
     .input(
@@ -19,10 +23,15 @@ export const questionRouter = router({
       ctx.logger.info({ limit: input.limit }, '获取最近题目列表开始');
 
       try {
+        const conditions = [eq(questions.isDelete, false)];
+        if (!isAdmin(ctx)) {
+          conditions.push(eq(questions.userId, ctx.user.id));
+        }
+
         const recentQuestions = await db
           .select()
           .from(questions)
-          .where(eq(questions.isDelete, false))
+          .where(and(...conditions))
           .orderBy(desc(questions.createTime))
           .limit(input.limit);
 
@@ -92,10 +101,15 @@ export const questionRouter = router({
         ctx.logger.info({ questionId: input.id }, '删除题目开始');
 
         try {
+          const conditions = [eq(questions.id, input.id), eq(questions.isDelete, false)];
+          if (!isAdmin(ctx)) {
+            conditions.push(eq(questions.userId, ctx.user.id));
+          }
+
           const [question] = await db
             .select()
             .from(questions)
-            .where(and(eq(questions.id, input.id), eq(questions.isDelete, false)))
+            .where(and(...conditions))
             .limit(1);
 
           throwIfNull(question, ErrorType.RESOURCE_NOT_FOUND, undefined, {
@@ -105,7 +119,7 @@ export const questionRouter = router({
           const [deletedQuestion] = await db
             .update(questions)
             .set({ isDelete: true, updateTime: new Date() })
-            .where(eq(questions.id, input.id))
+            .where(and(...conditions))
             .returning();
 
           ctx.logger.info({ questionId: deletedQuestion.id }, '题目删除成功');
@@ -134,10 +148,15 @@ export const questionRouter = router({
         try {
           const { id, ...updateData } = input;
 
+          const conditions = [eq(questions.id, id), eq(questions.isDelete, false)];
+          if (!isAdmin(ctx)) {
+            conditions.push(eq(questions.userId, ctx.user.id));
+          }
+
           const [question] = await db
             .select()
             .from(questions)
-            .where(and(eq(questions.id, id), eq(questions.isDelete, false)))
+            .where(and(...conditions))
             .limit(1);
 
           throwIfNull(question, ErrorType.RESOURCE_NOT_FOUND, undefined, {
@@ -161,7 +180,7 @@ export const questionRouter = router({
           const [updatedQuestion] = await db
             .update(questions)
             .set({ ...finalUpdateData, updateTime: new Date() })
-            .where(eq(questions.id, id))
+            .where(and(...conditions))
             .returning();
 
           ctx.logger.info(
@@ -181,10 +200,15 @@ export const questionRouter = router({
       .query(async ({ ctx, input }) => {
         ctx.logger.info({ questionId: input.id }, '根据ID查询题目');
 
+        const conditions = [eq(questions.id, input.id), eq(questions.isDelete, false)];
+        if (!isAdmin(ctx)) {
+          conditions.push(eq(questions.userId, ctx.user.id));
+        }
+
         const [question] = await db
           .select()
           .from(questions)
-          .where(and(eq(questions.id, input.id), eq(questions.isDelete, false)))
+          .where(and(...conditions))
           .limit(1);
 
         throwIfNull(question, ErrorType.RESOURCE_NOT_FOUND, undefined, {
@@ -203,6 +227,7 @@ export const questionRouter = router({
           pageSize: z.number().min(1).max(100).default(10),
           title: z.string().optional(),
           questionBankId: z.number().optional(),
+          userId: z.string().optional(),
         })
       )
       .query(async ({ ctx, input }) => {
@@ -212,13 +237,19 @@ export const questionRouter = router({
             pageSize: input.pageSize,
             title: input.title,
             questionBankId: input.questionBankId,
+            userId: input.userId,
           },
           '查询题目列表'
         );
 
         const offset = (input.page - 1) * input.pageSize;
 
-        const conditions = [];
+        const conditions = [eq(questions.isDelete, false)];
+        if (!isAdmin(ctx)) {
+          conditions.push(eq(questions.userId, ctx.user.id));
+        } else if (input.userId) {
+          conditions.push(eq(questions.userId, input.userId));
+        }
 
         if (input.title) {
           conditions.push(like(questions.title, `%${input.title}%`));
@@ -231,14 +262,14 @@ export const questionRouter = router({
           db
             .select()
             .from(questions)
-            .where(conditions.length > 0 ? and(...conditions) : undefined)
+            .where(and(...conditions))
             .offset(offset)
             .limit(input.pageSize)
             .orderBy(desc(questions.createTime)),
           db
             .select()
             .from(questions)
-            .where(conditions.length > 0 ? and(...conditions) : undefined),
+            .where(and(...conditions)),
         ]);
 
         ctx.logger.info(
@@ -337,10 +368,25 @@ export const questionRouter = router({
       // 并行删除题目
       const deletePromises = input.ids.map(async (id) => {
         try {
+          const conditions = [eq(questions.id, id), eq(questions.isDelete, false)];
+          if (!isAdmin(ctx)) {
+            conditions.push(eq(questions.userId, ctx.user.id));
+          }
+
+          const [question] = await db
+            .select()
+            .from(questions)
+            .where(and(...conditions))
+            .limit(1);
+          if (!question) {
+            results.failed.push({ id, reason: '题目不存在或无权限' });
+            return null;
+          }
+
           const [deletedQuestion] = await db
             .update(questions)
             .set({ isDelete: true, updateTime: new Date() })
-            .where(and(eq(questions.id, id), eq(questions.isDelete, false)))
+            .where(and(...conditions))
             .returning();
 
           if (deletedQuestion) {

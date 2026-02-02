@@ -39,13 +39,26 @@ export async function createContextAsync(opts: CreateFastifyContextOptions) {
     });
 
     if (session?.user) {
+      const [dbUser] = await db
+        .select({
+          id: users.id,
+          email: users.email,
+          userName: users.userName,
+          userAvatar: users.userAvatar,
+          userRole: users.userRole,
+          status: users.status,
+        })
+        .from(users)
+        .where(eq(users.id, session.user.id))
+        .limit(1);
+
       user = {
         id: session.user.id,
-        email: session.user.email,
-        userName: session.user.name,
-        userAvatar: session.user.image,
-        userRole: session.user.role || 'user',
-        status: session.user.status || 'active',
+        email: dbUser?.email ?? session.user.email,
+        userName: dbUser?.userName ?? session.user.name,
+        userAvatar: dbUser?.userAvatar ?? session.user.image,
+        userRole: dbUser?.userRole ?? (session.user.role || 'user'),
+        status: dbUser?.status ?? (session.user.status || 'active'),
       };
       log.info('用户已登录', { userId: user.id, email: user.email });
     }
