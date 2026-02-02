@@ -1,4 +1,5 @@
-import { router, publicProcedure } from '../index';
+import { router } from '../index';
+import { protectedProcedure } from '../middleware/auth';
 import { z } from 'zod';
 import { questions, questionBanks, practices } from '../../db/schema';
 import { eq, desc, and, sql } from 'drizzle-orm';
@@ -6,7 +7,7 @@ import { db } from '../../index';
 import { success } from '../../lib/response-wrapper';
 
 export const dashboardRouter = router({
-  getStats: publicProcedure.query(async ({ ctx }) => {
+  getStats: protectedProcedure.query(async ({ ctx }) => {
     ctx.logger.info('获取统计数据开始');
 
     try {

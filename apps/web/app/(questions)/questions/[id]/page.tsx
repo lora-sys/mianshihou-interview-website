@@ -1,22 +1,59 @@
 "use client";
 
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { trpc } from "@/lib/trpc/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@repo/ui";
 import { Badge } from "@repo/ui";
 import { Button } from "@repo/ui";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2, Pencil, Trash2 } from "lucide-react";
 import Link from "next/link";
+import { toast } from "sonner";
 
 export default function QuestionDetailPage() {
   const params = useParams();
+  const router = useRouter();
+  const id = Number((params as any)?.id);
+  const utils = trpc.useUtils?.();
+  const deleteMutation = trpc.questions.delete.useMutation({
+    onSuccess() {
+      toast.success("已删除");
+      void utils?.questions?.list?.invalidate?.();
+      router.replace("/questions");
+    },
+    onError(err: any) {
+      toast.error(err?.message ?? "删除失败");
+    },
+  });
+
   const {
-    data: question,
+    data: questionRes,
     isLoading,
     error,
-  } = trpc.questions.getById.useQuery({
-    id: params.id as string,
-  });
+  } = trpc.questions.getById.useQuery(
+    {
+      id: Number.isFinite(id) ? id : 0,
+    },
+    { enabled: Number.isFinite(id) && id > 0 },
+  );
+
+  const question = questionRes?.data;
+
+  function parseTags(value: any): string[] {
+    if (!value) return [];
+    if (Array.isArray(value)) return value.map(String);
+    if (typeof value === "string") {
+      try {
+        const parsed = JSON.parse(value);
+        if (Array.isArray(parsed)) return parsed.map(String);
+      } catch {
+        return value
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean);
+      }
+    }
+    return [];
+  }
 
   if (isLoading) {
     return (
@@ -30,7 +67,9 @@ export default function QuestionDetailPage() {
     return (
       <div className="text-center py-12">
         <p className="text-destructive">加载题目详情失败</p>
-        <p className="text-sm text-muted-foreground mt-2">{error.message}</p>
+        <p className="text-sm text-muted-foreground mt-2">
+          {(error as any).message}
+        </p>
       </div>
     );
   }
@@ -55,19 +94,50 @@ export default function QuestionDetailPage() {
           <h1 className="text-3xl font-bold">题目详情</h1>
           <p className="text-muted-foreground mt-2">查看题目完整信息</p>
         </div>
-        <Button>编辑</Button>
+        <div className="flex items-center gap-2">
+          <Button asChild variant="outline">
+            <Link href={`/questions/${question.id}/edit`}>
+              <Pencil className="w-4 h-4 mr-2" />
+              编辑
+            </Link>
+          </Button>
+          <Button
+            variant="destructive"
+            disabled={deleteMutation.isPending}
+            onClick={() => {
+              const ok = window.confirm("确定删除这道题吗？");
+              if (!ok) return;
+              deleteMutation.mutate({ id: Number(question.id) });
+            }}
+          >
+            <Trash2 className="w-4 h-4 mr-2" />
+            删除
+          </Button>
+        </div>
       </div>
 
       <Card>
         <CardHeader>
           <div className="flex items-start justify-between">
             <div>
-              <CardTitle className="text-2xl">
-                {question.questionTitle}
-              </CardTitle>
-              <div className="flex gap-2 mt-3">
-                <Badge>{question.questionType}</Badge>
-                <Badge variant="secondary">{question.difficulty}</Badge>
+              <CardTitle className="text-2xl">{question.title}</CardTitle>
+              <div className="flex flex-wrap gap-2 mt-3">
+                <Badge
+                  variant="outline"
+                  className="bg-primary/10 text-primary border-primary/20"
+                >
+                  {question.answer ? "有答案" : "待补充"}
+                </Badge>
+                {question.questionBankId ? (
+                  <Badge variant="outline">
+                    题库 #{question.questionBankId}
+                  </Badge>
+                ) : null}
+                {parseTags(question.tags).map((t) => (
+                  <Badge key={t} variant="outline" className="bg-muted/50">
+                    {t}
+                  </Badge>
+                ))}
               </div>
             </div>
           </div>
@@ -76,45 +146,15 @@ export default function QuestionDetailPage() {
           <div>
             <h3 className="font-semibold mb-2">题目内容</h3>
             <p className="text-muted-foreground whitespace-pre-wrap">
-              {question.questionContent}
+              {question.content}
             </p>
           </div>
-
-          {question.options && (
-            <div>
-              <h3 className="font-semibold mb-2">选项</h3>
-              <ul className="space-y-2">
-                {JSON.parse(question.options).map(
-                  (option: string, index: number) => (
-                    <li
-                      key={index}
-                      className="text-muted-foreground flex items-center gap-2"
-                    >
-                      <span className="font-medium w-6">
-                        {String.fromCharCode(65 + index)}.
-                      </span>
-                      <span>{option}</span>
-                    </li>
-                  ),
-                )}
-              </ul>
-            </div>
-          )}
 
           {question.answer && (
             <div>
               <h3 className="font-semibold mb-2">答案</h3>
               <p className="text-muted-foreground whitespace-pre-wrap">
                 {question.answer}
-              </p>
-            </div>
-          )}
-
-          {question.analysis && (
-            <div>
-              <h3 className="font-semibold mb-2">解析</h3>
-              <p className="text-muted-foreground whitespace-pre-wrap">
-                {question.analysis}
               </p>
             </div>
           )}

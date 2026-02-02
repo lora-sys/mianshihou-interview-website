@@ -1,4 +1,5 @@
 import { router, publicProcedure } from '../index';
+import { protectedProcedure } from '../middleware/auth';
 import { z } from 'zod';
 import { questionBanks, questionBankQuestions, questions } from '../../db/schema';
 import { eq, desc, and, like, sql } from 'drizzle-orm';
@@ -8,7 +9,7 @@ import { ErrorType } from '../../lib/errors';
 import { success, paginate, createPaginationMeta } from '../../lib/response-wrapper';
 
 export const questionBankRouter = router({
-  getRecent: publicProcedure
+  getRecent: protectedProcedure
     .input(
       z.object({
         limit: z.number().min(1).max(20).default(5),
@@ -50,17 +51,18 @@ export const questionBankRouter = router({
     }),
 
   questionBanks: router({
-    create: publicProcedure
+    create: protectedProcedure
       .input(
         z.object({
           title: z.string().min(1, { message: '标题不能为空' }),
           description: z.string().optional(),
           picture: z.string().optional(),
-          userId: z.string(),
+          userId: z.string().optional(),
         })
       )
       .mutation(async ({ ctx, input }) => {
-        ctx.logger.info({ title: input.title, userId: input.userId }, '创建题库开始');
+        const userId = ctx.user.id;
+        ctx.logger.info({ title: input.title, userId }, '创建题库开始');
 
         try {
           const [newQuestionBank] = await db
@@ -69,7 +71,7 @@ export const questionBankRouter = router({
               title: input.title,
               description: input.description,
               picture: input.picture,
-              userId: input.userId,
+              userId,
             })
             .returning();
 
@@ -85,36 +87,38 @@ export const questionBankRouter = router({
         }
       }),
 
-    delete: publicProcedure.input(z.object({ id: z.number() })).mutation(async ({ ctx, input }) => {
-      ctx.logger.info({ questionBankId: input.id }, '删除题库开始');
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        ctx.logger.info({ questionBankId: input.id }, '删除题库开始');
 
-      try {
-        const [questionBank] = await db
-          .select()
-          .from(questionBanks)
-          .where(and(eq(questionBanks.id, input.id), eq(questionBanks.isDelete, false)))
-          .limit(1);
+        try {
+          const [questionBank] = await db
+            .select()
+            .from(questionBanks)
+            .where(and(eq(questionBanks.id, input.id), eq(questionBanks.isDelete, false)))
+            .limit(1);
 
-        throwIfNull(questionBank, ErrorType.RESOURCE_NOT_FOUND, undefined, {
-          questionBankId: input.id,
-        });
+          throwIfNull(questionBank, ErrorType.RESOURCE_NOT_FOUND, undefined, {
+            questionBankId: input.id,
+          });
 
-        const [deletedQuestionBank] = await db
-          .update(questionBanks)
-          .set({ isDelete: true, updateTime: new Date() })
-          .where(eq(questionBanks.id, input.id))
-          .returning();
+          const [deletedQuestionBank] = await db
+            .update(questionBanks)
+            .set({ isDelete: true, updateTime: new Date() })
+            .where(eq(questionBanks.id, input.id))
+            .returning();
 
-        ctx.logger.info({ questionBankId: deletedQuestionBank.id }, '题库删除成功');
+          ctx.logger.info({ questionBankId: deletedQuestionBank.id }, '题库删除成功');
 
-        return success({ id: deletedQuestionBank.id }, '题库删除成功');
-      } catch (error) {
-        ctx.logger.error({ questionBankId: input.id, error }, '删除题库失败');
-        throw error;
-      }
-    }),
+          return success({ id: deletedQuestionBank.id }, '题库删除成功');
+        } catch (error) {
+          ctx.logger.error({ questionBankId: input.id, error }, '删除题库失败');
+          throw error;
+        }
+      }),
 
-    update: publicProcedure
+    update: protectedProcedure
       .input(
         z.object({
           id: z.number(),
@@ -160,25 +164,27 @@ export const questionBankRouter = router({
         }
       }),
 
-    getById: publicProcedure.input(z.object({ id: z.number() })).query(async ({ ctx, input }) => {
-      ctx.logger.info({ questionBankId: input.id }, '根据ID查询题库');
+    getById: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .query(async ({ ctx, input }) => {
+        ctx.logger.info({ questionBankId: input.id }, '根据ID查询题库');
 
-      const [questionBank] = await db
-        .select()
-        .from(questionBanks)
-        .where(and(eq(questionBanks.id, input.id), eq(questionBanks.isDelete, false)))
-        .limit(1);
+        const [questionBank] = await db
+          .select()
+          .from(questionBanks)
+          .where(and(eq(questionBanks.id, input.id), eq(questionBanks.isDelete, false)))
+          .limit(1);
 
-      throwIfNull(questionBank, ErrorType.RESOURCE_NOT_FOUND, undefined, {
-        questionBankId: input.id,
-      });
+        throwIfNull(questionBank, ErrorType.RESOURCE_NOT_FOUND, undefined, {
+          questionBankId: input.id,
+        });
 
-      ctx.logger.info({ questionBankId: input.id, title: questionBank.title }, '查询题库成功');
+        ctx.logger.info({ questionBankId: input.id, title: questionBank.title }, '查询题库成功');
 
-      return success(questionBank, '查询题库成功');
-    }),
+        return success(questionBank, '查询题库成功');
+      }),
 
-    list: publicProcedure
+    list: protectedProcedure
       .input(
         z.object({
           page: z.number().min(1).default(1),
@@ -223,20 +229,21 @@ export const questionBankRouter = router({
         return paginate(data, pagination, '查询题库列表成功');
       }),
 
-    addQuestion: publicProcedure
+    addQuestion: protectedProcedure
       .input(
         z.object({
           questionBankId: z.number(),
           questionId: z.number(),
-          userId: z.string(),
+          userId: z.string().optional(),
         })
       )
       .mutation(async ({ ctx, input }) => {
+        const userId = ctx.user.id;
         ctx.logger.info(
           {
             questionBankId: input.questionBankId,
             questionId: input.questionId,
-            userId: input.userId,
+            userId,
           },
           '添加题目到题库开始'
         );
@@ -290,7 +297,7 @@ export const questionBankRouter = router({
                 .values({
                   questionBankId: input.questionBankId,
                   questionId: input.questionId,
-                  userId: input.userId,
+                  userId,
                 })
                 .returning();
 
@@ -323,7 +330,7 @@ export const questionBankRouter = router({
         }
       }),
 
-    removeQuestion: publicProcedure
+    removeQuestion: protectedProcedure
       .input(
         z.object({
           questionBankId: z.number(),
@@ -395,7 +402,7 @@ export const questionBankRouter = router({
         }
       }),
 
-    getQuestions: publicProcedure
+    getQuestions: protectedProcedure
       .input(
         z.object({
           questionBankId: z.number(),
@@ -461,7 +468,7 @@ export const questionBankRouter = router({
       }),
   }),
 
-  batchCreate: publicProcedure
+  batchCreate: protectedProcedure
     .input(
       z.object({
         questionBanks: z
@@ -470,7 +477,7 @@ export const questionBankRouter = router({
               title: z.string().min(1),
               description: z.string().optional(),
               picture: z.string().optional(),
-              userId: z.string(),
+              userId: z.string().optional(),
             })
           )
           .min(1)
@@ -478,6 +485,7 @@ export const questionBankRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      const userId = ctx.user.id;
       ctx.logger.info({ count: input.questionBanks.length }, '批量创建题库开始');
 
       const results = {
@@ -494,7 +502,7 @@ export const questionBankRouter = router({
               title: questionBankData.title,
               description: questionBankData.description,
               picture: questionBankData.picture,
-              userId: questionBankData.userId,
+              userId,
             })
             .returning();
 
@@ -525,7 +533,7 @@ export const questionBankRouter = router({
       );
     }),
 
-  batchDelete: publicProcedure
+  batchDelete: protectedProcedure
     .input(
       z.object({
         ids: z.array(z.number()).min(1).max(50),
@@ -584,7 +592,7 @@ export const questionBankRouter = router({
     }),
 
   // List question banks with question count
-  listWithQuestionCount: publicProcedure
+  listWithQuestionCount: protectedProcedure
     .input(
       z.object({
         page: z.number().min(1).default(1),

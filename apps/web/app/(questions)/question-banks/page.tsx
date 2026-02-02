@@ -1,60 +1,56 @@
 "use client";
 
 import { trpc } from "@/lib/trpc/client";
-import { Button } from "@repo/ui";
+import Link from "next/link";
+import { useMemo, useState } from "react";
+import { toast } from "sonner";
+import { BookOpen, Loader2, Plus, Search, Trash2 } from "lucide-react";
 import {
+  Badge,
+  Button,
   Card,
   CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
-  CardDescription,
+  Input,
 } from "@repo/ui";
-import { Badge } from "@repo/ui";
-import { Input } from "@repo/ui";
-import {
-  Loader2,
-  Search,
-  Plus,
-  Pencil,
-  Trash2,
-  BookOpen,
-  Folder,
-} from "lucide-react";
-import { useState } from "react";
+
+const EMPTY_ITEMS: any[] = [];
 
 export default function QuestionBanksPage() {
   const [searchQuery, setSearchQuery] = useState("");
-  const {
-    data: questionBanks,
-    isLoading,
-    error,
-  } = trpc.questionBanks.listWithQuestionCount.useQuery();
-  const deleteMutation = trpc.questionBanks.delete.useMutation();
+  const utils = trpc.useUtils?.();
 
-  const getCategoryColor = (category: string) => {
-    const colors = [
-      "bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20",
-      "bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20",
-      "bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-500/20",
-      "bg-pink-500/10 text-pink-700 dark:text-pink-400 border-pink-500/20",
-      "bg-cyan-500/10 text-cyan-700 dark:text-cyan-400 border-cyan-500/20",
-      "bg-orange-500/10 text-orange-700 dark:text-orange-400 border-orange-500/20",
-    ];
-    const index = category.length % colors.length;
-    return colors[index];
-  };
+  const { data, isLoading, error, isFetching } =
+    trpc.questionBank.listWithQuestionCount.useQuery({
+      page: 1,
+      pageSize: 50,
+      title: searchQuery.trim() ? searchQuery.trim() : undefined,
+    });
 
-  const filteredBanks =
-    questionBanks?.data?.filter(
-      (bank: any) =>
-        bank.questionBankName
-          .toLowerCase()
-          .includes(searchQuery.toLowerCase()) ||
-        (bank.description &&
-          bank.description.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        (bank.category &&
-          bank.category.toLowerCase().includes(searchQuery.toLowerCase())),
-    ) || [];
+  const items = data?.data?.items ?? EMPTY_ITEMS;
+  const pagination = data?.data?.pagination;
+
+  const deleteMutation = trpc.questionBanks.delete.useMutation({
+    onSuccess() {
+      toast.success("已删除");
+      void utils?.questionBank?.listWithQuestionCount?.invalidate?.();
+    },
+    onError(err: any) {
+      toast.error(err?.message ?? "删除失败");
+    },
+  });
+
+  const visibleItems = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return items;
+    return items.filter((it: any) => {
+      const title = String(it.title ?? "").toLowerCase();
+      const desc = String(it.description ?? "").toLowerCase();
+      return title.includes(q) || desc.includes(q);
+    });
+  }, [items, searchQuery]);
 
   if (isLoading) {
     return (
@@ -86,7 +82,9 @@ export default function QuestionBanksPage() {
           </svg>
         </div>
         <p className="text-destructive font-medium">加载题库列表失败</p>
-        <p className="text-sm text-muted-foreground mt-2">{error.message}</p>
+        <p className="text-sm text-muted-foreground mt-2">
+          {(error as any).message}
+        </p>
       </div>
     );
   }
@@ -99,11 +97,18 @@ export default function QuestionBanksPage() {
           <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
             题库列表
           </h1>
-          <p className="text-muted-foreground mt-2">管理和查看所有题库</p>
+          <p className="text-muted-foreground mt-2">
+            管理和查看所有题库
+            {pagination
+              ? `（第 ${pagination.page} / ${pagination.totalPages} 页）`
+              : ""}
+          </p>
         </div>
-        <Button className="shadow-md">
-          <Plus className="w-4 h-4 mr-2" />
-          新增题库
+        <Button asChild className="shadow-md">
+          <Link href="/question-banks/new">
+            <Plus className="w-4 h-4 mr-2" />
+            新增题库
+          </Link>
         </Button>
       </div>
 
@@ -119,22 +124,17 @@ export default function QuestionBanksPage() {
       </div>
 
       {/* 统计信息 */}
-      {filteredBanks.length > 0 && (
+      {visibleItems.length > 0 && (
         <div className="flex items-center gap-4 text-sm text-muted-foreground">
-          <span>共 {filteredBanks.length} 个题库</span>
-          {searchQuery && (
-            <>
-              <span>•</span>
-              <span>搜索结果: {filteredBanks.length} 个</span>
-            </>
-          )}
+          <span>当前 {visibleItems.length} 个</span>
+          {isFetching && <span>• 更新中...</span>}
         </div>
       )}
 
       {/* 题库网格 */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {filteredBanks.length > 0 ? (
-          filteredBanks.map((bank: any) => (
+        {visibleItems.length > 0 ? (
+          visibleItems.map((bank: any) => (
             <Card
               key={bank.id}
               className="shadow-md hover:shadow-xl transition-all border-border/50 flex flex-col"
@@ -146,31 +146,31 @@ export default function QuestionBanksPage() {
                       <BookOpen className="w-5 h-5" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <CardTitle className="text-lg hover:text-primary transition-colors cursor-pointer line-clamp-1">
-                        {bank.questionBankName}
-                      </CardTitle>
-                      {bank.category && (
+                      <Link href={`/question-banks/${bank.id}`}>
+                        <CardTitle className="text-lg hover:text-primary transition-colors line-clamp-1">
+                          {bank.title}
+                        </CardTitle>
+                      </Link>
+                      <div className="mt-2 flex flex-wrap gap-2">
                         <Badge
-                          className={`mt-2 ${getCategoryColor(bank.category)}`}
+                          variant="outline"
+                          className="bg-primary/10 text-primary border-primary/20"
                         >
-                          {bank.category}
+                          {bank.questionCount ?? 0} 题
                         </Badge>
-                      )}
+                      </div>
                     </div>
                   </div>
                   <div className="flex gap-1 flex-shrink-0">
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8 hover:bg-primary/10 hover:text-primary"
-                    >
-                      <Pencil className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
                       className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive"
-                      onClick={() => deleteMutation.mutate({ id: bank.id })}
+                      onClick={() => {
+                        const ok = window.confirm("确定删除这个题库吗？");
+                        if (!ok) return;
+                        deleteMutation.mutate({ id: Number(bank.id) });
+                      }}
                       disabled={deleteMutation.isPending}
                     >
                       <Trash2 className="w-4 h-4" />
@@ -183,29 +183,18 @@ export default function QuestionBanksPage() {
                   {bank.description || "暂无描述"}
                 </p>
                 <div className="flex items-center justify-between pt-2 border-t border-border/50">
-                  <div className="flex items-center gap-2 text-sm font-medium text-primary">
-                    <BookOpen className="w-4 h-4" />
-                    <span>{bank.questionCount || 0} 道题目</span>
+                  <div className="text-xs text-muted-foreground">
+                    {bank.updateTime
+                      ? `更新于 ${new Date(bank.updateTime).toLocaleString()}`
+                      : ""}
                   </div>
                   <Button
+                    asChild
                     variant="ghost"
                     size="sm"
                     className="text-primary hover:bg-primary/10"
                   >
-                    查看详情
-                    <svg
-                      className="ml-1 w-4 h-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M9 5l7 7-7 7"
-                      />
-                    </svg>
+                    <Link href={`/question-banks/${bank.id}`}>查看详情</Link>
                   </Button>
                 </div>
               </CardContent>
@@ -215,15 +204,17 @@ export default function QuestionBanksPage() {
           <Card className="md:col-span-2 lg:col-span-3 shadow-md">
             <CardContent className="flex flex-col items-center justify-center py-16">
               <div className="w-20 h-20 rounded-full bg-muted/50 flex items-center justify-center mb-4">
-                <Folder className="w-10 h-10 text-muted-foreground/60" />
+                <BookOpen className="w-10 h-10 text-muted-foreground/60" />
               </div>
               <CardDescription className="text-base mb-4">
                 {searchQuery ? "没有找到匹配的题库" : "暂无题库"}
               </CardDescription>
               {!searchQuery && (
-                <Button className="shadow-md" variant="outline">
-                  <Plus className="w-4 h-4 mr-2" />
-                  创建第一个题库
+                <Button asChild className="shadow-md" variant="outline">
+                  <Link href="/question-banks/new">
+                    <Plus className="w-4 h-4 mr-2" />
+                    创建第一个题库
+                  </Link>
                 </Button>
               )}
             </CardContent>

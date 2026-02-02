@@ -1,58 +1,72 @@
 "use client";
 
 import { trpc } from "@/lib/trpc/client";
-import { Button } from "@repo/ui";
+import Link from "next/link";
+import { useMemo, useState } from "react";
+import { toast } from "sonner";
+import { Loader2, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import {
+  Badge,
+  Button,
   Card,
   CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
-  CardDescription,
+  Input,
 } from "@repo/ui";
-import { Badge } from "@repo/ui";
-import { Input } from "@repo/ui";
-import { Loader2, Search, Plus, Pencil, Trash2 } from "lucide-react";
-import { useState } from "react";
+
+const EMPTY_ITEMS: any[] = [];
 
 export default function QuestionsPage() {
   const [searchQuery, setSearchQuery] = useState("");
-  const { data: questions, isLoading, error } = trpc.questions.list.useQuery();
-  const deleteMutation = trpc.questions.delete.useMutation();
+  const utils = trpc.useUtils?.();
 
-  const getDifficultyColor = (difficulty: string) => {
-    switch (difficulty.toLowerCase()) {
-      case "简单":
-        return "bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20";
-      case "中等":
-        return "bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 border-yellow-500/20";
-      case "困难":
-        return "bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20";
-      default:
-        return "bg-primary/10 text-primary border-primary/20";
+  const { data, isLoading, error, isFetching } = trpc.questions.list.useQuery({
+    page: 1,
+    pageSize: 50,
+    title: searchQuery.trim() ? searchQuery.trim() : undefined,
+  });
+
+  const items = data?.data?.items ?? EMPTY_ITEMS;
+  const pagination = data?.data?.pagination;
+
+  const deleteMutation = trpc.questions.delete.useMutation({
+    onSuccess() {
+      toast.success("已删除");
+      void utils?.questions?.list?.invalidate?.();
+    },
+    onError(err: any) {
+      toast.error(err?.message ?? "删除失败");
+    },
+  });
+
+  const visibleItems = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return items;
+    return items.filter((it: any) => {
+      const title = String(it.title ?? "").toLowerCase();
+      const content = String(it.content ?? "").toLowerCase();
+      return title.includes(q) || content.includes(q);
+    });
+  }, [items, searchQuery]);
+
+  function parseTags(value: any): string[] {
+    if (!value) return [];
+    if (Array.isArray(value)) return value.map(String);
+    if (typeof value === "string") {
+      try {
+        const parsed = JSON.parse(value);
+        if (Array.isArray(parsed)) return parsed.map(String);
+      } catch {
+        return value
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean);
+      }
     }
-  };
-
-  const getTypeColor = (type: string) => {
-    switch (type.toLowerCase()) {
-      case "单选题":
-        return "bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20";
-      case "多选题":
-        return "bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-500/20";
-      case "判断题":
-        return "bg-cyan-500/10 text-cyan-700 dark:text-cyan-400 border-cyan-500/20";
-      case "简答题":
-        return "bg-orange-500/10 text-orange-700 dark:text-orange-400 border-orange-500/20";
-      default:
-        return "bg-primary/10 text-primary border-primary/20";
-    }
-  };
-
-  const filteredQuestions =
-    questions?.data?.filter(
-      (q: any) =>
-        q.questionTitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        q.questionContent.toLowerCase().includes(searchQuery.toLowerCase()),
-    ) || [];
+    return [];
+  }
 
   if (isLoading) {
     return (
@@ -84,7 +98,9 @@ export default function QuestionsPage() {
           </svg>
         </div>
         <p className="text-destructive font-medium">加载题目列表失败</p>
-        <p className="text-sm text-muted-foreground mt-2">{error.message}</p>
+        <p className="text-sm text-muted-foreground mt-2">
+          {(error as any).message}
+        </p>
       </div>
     );
   }
@@ -97,11 +113,18 @@ export default function QuestionsPage() {
           <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
             题目列表
           </h1>
-          <p className="text-muted-foreground mt-2">管理和查看所有面试题目</p>
+          <p className="text-muted-foreground mt-2">
+            管理和查看所有面试题目
+            {pagination
+              ? `（第 ${pagination.page} / ${pagination.totalPages} 页）`
+              : ""}
+          </p>
         </div>
-        <Button className="shadow-md">
-          <Plus className="w-4 h-4 mr-2" />
-          新增题目
+        <Button asChild className="shadow-md">
+          <Link href="/questions/new">
+            <Plus className="w-4 h-4 mr-2" />
+            新增题目
+          </Link>
         </Button>
       </div>
 
@@ -117,79 +140,101 @@ export default function QuestionsPage() {
       </div>
 
       {/* 统计信息 */}
-      {filteredQuestions.length > 0 && (
+      {visibleItems.length > 0 && (
         <div className="flex items-center gap-4 text-sm text-muted-foreground">
-          <span>共 {filteredQuestions.length} 道题目</span>
-          {searchQuery && (
-            <>
-              <span>•</span>
-              <span>搜索结果: {filteredQuestions.length} 道</span>
-            </>
-          )}
+          <span>当前 {visibleItems.length} 道</span>
+          {isFetching && <span>• 更新中...</span>}
         </div>
       )}
 
       {/* 题目列表 */}
       <div className="grid gap-4">
-        {filteredQuestions.length > 0 ? (
-          filteredQuestions.map((question: any, index: number) => (
-            <Card
-              key={question.id}
-              className="shadow-md hover:shadow-lg transition-all border-border/50"
-            >
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start gap-3">
-                      <div className="flex-shrink-0 h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-sm font-semibold text-primary">
-                        {index + 1}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <CardTitle className="text-lg hover:text-primary transition-colors cursor-pointer line-clamp-1">
-                          {question.questionTitle}
-                        </CardTitle>
-                        <div className="flex flex-wrap gap-2 mt-3">
-                          <Badge
-                            className={getTypeColor(question.questionType)}
-                          >
-                            {question.questionType}
-                          </Badge>
-                          <Badge
-                            className={getDifficultyColor(question.difficulty)}
-                          >
-                            {question.difficulty}
-                          </Badge>
+        {visibleItems.length > 0 ? (
+          visibleItems.map((question: any, index: number) => {
+            const tags = parseTags(question.tags);
+            return (
+              <Card
+                key={question.id}
+                className="shadow-md hover:shadow-lg transition-all border-border/50"
+              >
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start gap-3">
+                        <div className="flex-shrink-0 h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-sm font-semibold text-primary">
+                          {index + 1}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <Link href={`/questions/${question.id}`}>
+                            <CardTitle className="text-lg hover:text-primary transition-colors line-clamp-1">
+                              {question.title}
+                            </CardTitle>
+                          </Link>
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            <Badge
+                              variant="outline"
+                              className="bg-primary/10 text-primary border-primary/20"
+                            >
+                              {question.answer ? "有答案" : "待补充"}
+                            </Badge>
+                            {question.questionBankId ? (
+                              <Badge variant="outline">
+                                题库 #{question.questionBankId}
+                              </Badge>
+                            ) : null}
+                            {tags.slice(0, 3).map((t: string) => (
+                              <Badge
+                                key={t}
+                                variant="outline"
+                                className="bg-muted/50"
+                              >
+                                {t}
+                              </Badge>
+                            ))}
+                            {tags.length > 3 ? (
+                              <Badge variant="outline" className="bg-muted/50">
+                                +{tags.length - 3}
+                              </Badge>
+                            ) : null}
+                          </div>
                         </div>
                       </div>
                     </div>
+                    <div className="flex gap-1 flex-shrink-0">
+                      <Button
+                        asChild
+                        variant="ghost"
+                        size="icon"
+                        className="h-9 w-9 hover:bg-primary/10 hover:text-primary"
+                      >
+                        <Link href={`/questions/${question.id}/edit`}>
+                          <Pencil className="w-4 h-4" />
+                        </Link>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-9 w-9 hover:bg-destructive/10 hover:text-destructive"
+                        onClick={() => {
+                          const ok = window.confirm("确定删除这道题吗？");
+                          if (!ok) return;
+                          deleteMutation.mutate({ id: Number(question.id) });
+                        }}
+                        disabled={deleteMutation.isPending}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
                   </div>
-                  <div className="flex gap-1 flex-shrink-0">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-9 w-9 hover:bg-primary/10 hover:text-primary"
-                    >
-                      <Pencil className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-9 w-9 hover:bg-destructive/10 hover:text-destructive"
-                      onClick={() => deleteMutation.mutate({ id: question.id })}
-                      disabled={deleteMutation.isPending}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <p className="text-muted-foreground text-sm line-clamp-2 leading-relaxed">
-                  {question.questionContent}
-                </p>
-              </CardContent>
-            </Card>
-          ))
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <p className="text-muted-foreground text-sm line-clamp-2 leading-relaxed">
+                    {question.content}
+                  </p>
+                </CardContent>
+              </Card>
+            );
+          })
         ) : (
           <Card className="shadow-md">
             <CardContent className="flex flex-col items-center justify-center py-16">
@@ -212,9 +257,11 @@ export default function QuestionsPage() {
                 {searchQuery ? "没有找到匹配的题目" : "暂无题目"}
               </CardDescription>
               {!searchQuery && (
-                <Button className="shadow-md" variant="outline">
-                  <Plus className="w-4 h-4 mr-2" />
-                  创建第一个题目
+                <Button asChild className="shadow-md" variant="outline">
+                  <Link href="/questions/new">
+                    <Plus className="w-4 h-4 mr-2" />
+                    创建第一个题目
+                  </Link>
                 </Button>
               )}
             </CardContent>

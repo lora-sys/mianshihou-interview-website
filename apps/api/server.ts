@@ -13,9 +13,6 @@ import { getRedisManager } from './lib/redis';
 import { startCleanupTasks, stopCleanupTasks } from './tasks/cleanup-schedule';
 import { performHealthCheck, performLivenessCheck } from './lib/health';
 
-// tRPC Panel
-import { createTRPCPanel } from 'trpc-panel';
-
 const fastify = Fastify({
   logger:
     process.env.NODE_ENV === 'development'
@@ -33,11 +30,14 @@ fastify.register(fastifyCookie, {
   secret: process.env.COOKIE_SECRET || 'your-cookie-secret-change-this',
 });
 
+const isDev = process.env.NODE_ENV !== 'production';
 const corsOriginRaw = process.env.CORS_ORIGIN
   ? process.env.CORS_ORIGIN.split(',')
       .map((o) => o.trim())
       .filter(Boolean)
-  : '*';
+  : isDev
+    ? '*'
+    : false;
 const corsOrigin =
   corsOriginRaw === '*'
     ? true
