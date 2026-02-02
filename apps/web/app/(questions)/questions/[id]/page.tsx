@@ -5,9 +5,10 @@ import { trpc } from "@/lib/trpc/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@repo/ui";
 import { Badge } from "@repo/ui";
 import { Button } from "@repo/ui";
-import { ArrowLeft, Loader2, Pencil, Trash2 } from "lucide-react";
+import { ArrowLeft, Pencil, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
+import { PageMessage, PageSpinner } from "@/components/states";
 
 export default function QuestionDetailPage() {
   const params = useParams();
@@ -56,29 +57,29 @@ export default function QuestionDetailPage() {
   }
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <PageSpinner label="加载题目详情..." />;
   }
 
   if (error) {
     return (
-      <div className="text-center py-12">
-        <p className="text-destructive">加载题目详情失败</p>
-        <p className="text-sm text-muted-foreground mt-2">
-          {(error as any).message}
-        </p>
-      </div>
+      <PageMessage
+        tone="danger"
+        title="加载题目详情失败"
+        description={(error as any).message}
+        actionLabel="返回列表"
+        actionHref="/questions"
+      />
     );
   }
 
   if (!question) {
     return (
-      <div className="text-center py-12">
-        <p className="text-muted-foreground">题目不存在</p>
-      </div>
+      <PageMessage
+        title="题目不存在"
+        description="可能已被删除，或链接不正确。"
+        actionLabel="返回列表"
+        actionHref="/questions"
+      />
     );
   }
 

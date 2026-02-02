@@ -2,7 +2,7 @@ import { router, publicProcedure } from '../index';
 import { protectedProcedure } from '../middleware/auth';
 import { z } from 'zod';
 import { questionBanks, questionBankQuestions, questions } from '../../db/schema';
-import { eq, desc, and, like, sql } from 'drizzle-orm';
+import { eq, desc, and, like, sql, inArray } from 'drizzle-orm';
 import { db } from '../../index';
 import { throwIfNull, throwIf, throwIfNot } from '../../lib/exception';
 import { ErrorType } from '../../lib/errors';
@@ -448,14 +448,14 @@ export const questionBankRouter = router({
           db
             .select()
             .from(questions)
-            .where(and(eq(questions.isDelete, false), sql`${questions.id} = ANY(${questionIds})`))
+            .where(and(eq(questions.isDelete, false), inArray(questions.id, questionIds)))
             .offset(offset)
             .limit(input.pageSize)
             .orderBy(desc(questions.createTime)),
           db
             .select()
             .from(questions)
-            .where(and(eq(questions.isDelete, false), sql`${questions.id} = ANY(${questionIds})`)),
+            .where(and(eq(questions.isDelete, false), inArray(questions.id, questionIds))),
         ]);
 
         ctx.logger.info(

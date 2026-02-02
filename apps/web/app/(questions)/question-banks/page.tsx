@@ -4,7 +4,8 @@ import { trpc } from "@/lib/trpc/client";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { BookOpen, Loader2, Plus, Search, Trash2 } from "lucide-react";
+import { BookOpen, Plus, Search, Trash2 } from "lucide-react";
+import { PageMessage, PageSpinner } from "@/components/states";
 import {
   Badge,
   Button,
@@ -53,39 +54,18 @@ export default function QuestionBanksPage() {
   }, [items, searchQuery]);
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="w-12 h-12 animate-spin text-primary" />
-          <p className="text-muted-foreground">加载题库列表...</p>
-        </div>
-      </div>
-    );
+    return <PageSpinner label="加载题库列表..." />;
   }
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[400px] text-center">
-        <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mb-4">
-          <svg
-            className="w-8 h-8 text-destructive"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3L21 12c0 1.103-.884 2-1.972 2z"
-            />
-          </svg>
-        </div>
-        <p className="text-destructive font-medium">加载题库列表失败</p>
-        <p className="text-sm text-muted-foreground mt-2">
-          {(error as any).message}
-        </p>
-      </div>
+      <PageMessage
+        tone="danger"
+        title="加载题库列表失败"
+        description={(error as any).message}
+        actionLabel="返回仪表盘"
+        actionHref="/dashboard"
+      />
     );
   }
 
