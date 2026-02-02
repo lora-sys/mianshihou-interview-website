@@ -10,3 +10,12 @@ export {
   CardFooter,
 } from "./ui/card";
 export { Badge } from "./ui/badge";
+export {
+  Form,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormDescription,
+  FormMessage,
+  FormField,
+} from "./ui/form";

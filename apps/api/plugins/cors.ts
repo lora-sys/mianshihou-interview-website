@@ -8,7 +8,24 @@ interface CorsOptions {
 }
 
 export default async function corsPlugin(fastify: any, options: CorsOptions) {
-  const corsOrigin = process.env.CORS_ORIGIN?.split(',') || options.origin || '*';
+  const rawOrigin =
+    process.env.CORS_ORIGIN?.split(',')
+      .map((o) => o.trim())
+      .filter(Boolean) ??
+    options.origin ??
+    '*';
+  const isCredentialsEnabled = options.credentials ?? true;
+
+  const corsOrigin =
+    rawOrigin === '*'
+      ? isCredentialsEnabled
+        ? true
+        : '*'
+      : Array.isArray(rawOrigin)
+        ? rawOrigin.includes('*') && isCredentialsEnabled
+          ? true
+          : rawOrigin
+        : rawOrigin;
 
   await fastify.register(fastifyCors, {
     origin: corsOrigin,

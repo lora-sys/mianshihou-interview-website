@@ -384,7 +384,7 @@ export default function DashboardPage() {
                 </div>
               ) : recentQuestions && recentQuestions.length > 0 ? (
                 <div className="space-y-4">
-                  {recentQuestions.map((question, index) => (
+                  {recentQuestions.map((question: any, index: number) => (
                     <div
                       key={question.id}
                       className="flex items-start gap-3 p-3 rounded-lg hover:bg-muted/50 transition-colors border border-transparent hover:border-border/50"
@@ -503,7 +503,7 @@ export default function DashboardPage() {
                 </div>
               ) : recentBanks && recentBanks.length > 0 ? (
                 <div className="space-y-4">
-                  {recentBanks.map((bank, index) => (
+                  {recentBanks.map((bank: any, index: number) => (
                     <div
                       key={bank.id}
                       className="flex items-start gap-3 p-3 rounded-lg hover:bg-muted/50 transition-colors border border-transparent hover:border-border/50"

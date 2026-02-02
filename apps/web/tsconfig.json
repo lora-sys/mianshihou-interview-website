@@ -2,6 +2,7 @@
   "extends": "@repo/typescript-config/nextjs.json",
   "compilerOptions": {
     "plugins": [{ "name": "next" }],
+    "types": ["node", "react", "react-dom"],
     "paths": {
       "@/*": ["./app/*"],
       "@/lib/*": ["./app/lib/*"],

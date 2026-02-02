@@ -1,9 +1,9 @@
 import Fastify from 'fastify';
+import fastifyCors from '@fastify/cors';
 import fastifyCookie from '@fastify/cookie';
 import { fastifyTRPCPlugin } from '@trpc/server/adapters/fastify';
 import { appRouter } from './trpc/router';
 import { createContextAsync } from './trpc/index';
-import corsPlugin from './plugins/cors';
 import { log } from './lib/logger';
 import { auth } from './lib/auth';
 import { headersFromRequest } from './lib/cookie-utils';
@@ -29,38 +29,29 @@ const fastify = Fastify({
 // 注册日志中间件
 registerLoggingMiddleware(fastify);
 
-// 添加全局 CORS 头部钩子
-fastify.addHook('onRequest', async (request, reply) => {
-  // 跳过健康检查路由
-  if (request.url.startsWith('/health')) {
-    return;
-  }
-
-  // 跳过 OPTIONS 预检请求
-  if (request.method === 'OPTIONS') {
-    reply.header('Access-Control-Allow-Origin', '*');
-    reply.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
-    reply.header(
-      'Access-Control-Allow-Headers',
-      'Content-Type, Authorization, X-Requested-With, Accept, Origin'
-    );
-    reply.header('Access-Control-Allow-Credentials', 'true');
-    reply.header('Access-Control-Max-Age', '86400');
-    reply.code(204).send();
-    return;
-  }
-
-  // 为所有其他请求添加 CORS 头部
-  reply.header('Access-Control-Allow-Origin', '*');
-  reply.header('Access-Control-Allow-Credentials', 'true');
-});
-
 fastify.register(fastifyCookie, {
   secret: process.env.COOKIE_SECRET || 'your-cookie-secret-change-this',
 });
-fastify.register(corsPlugin, {
-  origin: process.env.CORS_ORIGIN || '*',
+
+const corsOriginRaw = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(',')
+      .map((o) => o.trim())
+      .filter(Boolean)
+  : '*';
+const corsOrigin =
+  corsOriginRaw === '*'
+    ? true
+    : Array.isArray(corsOriginRaw) && corsOriginRaw.includes('*')
+      ? true
+      : corsOriginRaw;
+
+fastify.register(fastifyCors, {
+  origin: corsOrigin,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   credentials: true,
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+  exposedHeaders: ['X-Request-Id', 'Content-Length', 'Content-Type'],
+  maxAge: 86400,
 });
 
 // 注册限流中间件（仅在非健康检查路由和 OPTIONS 请求上生效）

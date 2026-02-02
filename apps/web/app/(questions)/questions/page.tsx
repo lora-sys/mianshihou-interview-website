@@ -49,7 +49,7 @@ export default function QuestionsPage() {
 
   const filteredQuestions =
     questions?.data?.filter(
-      (q) =>
+      (q: any) =>
         q.questionTitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
         q.questionContent.toLowerCase().includes(searchQuery.toLowerCase()),
     ) || [];
@@ -132,7 +132,7 @@ export default function QuestionsPage() {
       {/* 题目列表 */}
       <div className="grid gap-4">
         {filteredQuestions.length > 0 ? (
-          filteredQuestions.map((question, index) => (
+          filteredQuestions.map((question: any, index: number) => (
             <Card
               key={question.id}
               className="shadow-md hover:shadow-lg transition-all border-border/50"

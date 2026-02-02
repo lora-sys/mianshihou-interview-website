@@ -7,7 +7,7 @@ import { ErrorType } from '../../lib/errors';
 import { log } from '../../lib/logger';
 import { headersFromRequest } from '../../lib/cookie-utils';
 import { success } from '../../lib/response-wrapper';
-import { sanitizeUser, transformUser } from '../../lib/data-sanitizer';
+import { sanitizeUser } from '../../lib/data-sanitizer';
 import { transformUser as transformUserField } from '../../lib/field-transformer';
 import {
   handleConcurrentLogin,
@@ -16,6 +16,21 @@ import {
   revokeAllDevices,
 } from '../../lib/concurrent-login';
 import { generateDeviceInfo } from '../../lib/device-fingerprint';
+
+function applyAuthResponseHeaders(reply: any, headers: Headers | null | undefined) {
+  if (!reply || !headers) return;
+
+  const getSetCookie = (headers as any).getSetCookie as undefined | (() => string[]);
+  const setCookies = typeof getSetCookie === 'function' ? getSetCookie.call(headers) : null;
+  if (setCookies && setCookies.length > 0) {
+    reply.header('set-cookie', setCookies);
+  }
+
+  headers.forEach((value, key) => {
+    if (key.toLowerCase() === 'set-cookie') return;
+    reply.header(key, value);
+  });
+}
 
 export const authRouter = router({
   signUp: publicProcedure
@@ -39,15 +54,18 @@ export const authRouter = router({
             name: input.name || input.email.split('@')[0],
           },
           headers,
+          returnHeaders: true,
         });
 
         log.info('用户注册成功', {
           email: input.email,
-          userId: result.user?.id,
+          userId: (result as any).response?.user?.id,
         });
 
+        applyAuthResponseHeaders(ctx.res, (result as any).headers);
+
         // 脱敏和转换用户数据
-        const transformedUser = transformUserField(sanitizeUser(result.user));
+        const transformedUser = transformUserField(sanitizeUser((result as any).response?.user));
 
         // 包装响应
         return success(transformedUser, '注册成功');
@@ -82,14 +100,18 @@ export const authRouter = router({
             password: input.password,
           },
           headers,
+          returnHeaders: true,
         });
 
-        if (!result.user || !result.session) {
+        const response = (result as any).response;
+        if (!response?.user || !response?.token) {
           throw new TRPCError({
             code: 'UNAUTHORIZED',
             message: '邮箱或密码错误',
           });
         }
+
+        applyAuthResponseHeaders(ctx.res, (result as any).headers);
 
         // 获取客户端 IP 和 User-Agent
         const ip = ctx.req.ip || (ctx.req.headers['x-forwarded-for'] as string) || 'unknown';
@@ -97,15 +119,16 @@ export const authRouter = router({
 
         // 检查并发登录
         const concurrentCheck = await handleConcurrentLogin(
-          result.user.id,
+          response.user.id,
           ip,
           userAgent,
-          result.session.id
+          response.token
         );
 
         if (!concurrentCheck.allowed) {
           // 登出当前会话
-          await auth.api.signOut({ headers });
+          const out = await auth.api.signOut({ headers, returnHeaders: true });
+          applyAuthResponseHeaders(ctx.res, (out as any).headers);
 
           throw new TRPCError({
             code: 'FORBIDDEN',
@@ -115,17 +138,22 @@ export const authRouter = router({
 
         log.info('用户登录成功', {
           email: input.email,
-          userId: result.user?.id,
+          userId: response.user?.id,
           ip,
         });
 
         // 脱敏和转换用户数据
-        const transformedUser = transformUserField(sanitizeUser(result.user));
+        const transformedUser = transformUserField(sanitizeUser(response.user));
 
         // 包装响应
         return success(transformedUser, '登录成功');
       } catch (error: any) {
-        if (error?.status === 401 || error?.message?.includes('Invalid credentials')) {
+        const msg = typeof error?.message === 'string' ? error.message.toLowerCase() : '';
+        if (
+          error?.status === 401 ||
+          msg.includes('invalid credentials') ||
+          msg.includes('invalid email or password')
+        ) {
           throw new TRPCError({
             code: 'UNAUTHORIZED',
             message: '邮箱或密码错误',
@@ -142,9 +170,8 @@ export const authRouter = router({
       // 使用解耦的工具函数获取 Better-Auth Headers
       const headers = headersFromRequest(ctx.req);
 
-      await auth.api.signOut({
-        headers,
-      });
+      const result = await auth.api.signOut({ headers, returnHeaders: true });
+      applyAuthResponseHeaders(ctx.res, (result as any).headers);
 
       return success(null, '登出成功');
     } catch (error) {

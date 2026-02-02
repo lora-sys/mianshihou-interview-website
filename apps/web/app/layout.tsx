@@ -13,8 +13,8 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "面试后 - 面试管理系统",
-  description: "专业的面试题目和题库管理系统",
+  title: "面试猴 - 面试管理系统",
+  description: "面试猴：专业的面试题目和题库管理系统",
 };
 
 export default function RootLayout({

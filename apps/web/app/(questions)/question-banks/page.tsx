@@ -46,7 +46,7 @@ export default function QuestionBanksPage() {
 
   const filteredBanks =
     questionBanks?.data?.filter(
-      (bank) =>
+      (bank: any) =>
         bank.questionBankName
           .toLowerCase()
           .includes(searchQuery.toLowerCase()) ||
@@ -134,7 +134,7 @@ export default function QuestionBanksPage() {
       {/* 题库网格 */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {filteredBanks.length > 0 ? (
-          filteredBanks.map((bank) => (
+          filteredBanks.map((bank: any) => (
             <Card
               key={bank.id}
               className="shadow-md hover:shadow-xl transition-all border-border/50 flex flex-col"
