@@ -66,9 +66,10 @@ function highlight(text: string, q: string) {
 export default async function SearchPage({
   searchParams,
 }: {
-  searchParams?: Record<string, string | string[] | undefined>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const { q } = normalizeSearchParams(searchParams);
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  const { q } = normalizeSearchParams(resolvedSearchParams);
 
   const res = q ? await safeTrpcQuery("search.query", { q, limit: 10 }) : null;
 

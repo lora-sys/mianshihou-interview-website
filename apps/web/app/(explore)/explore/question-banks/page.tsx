@@ -29,9 +29,10 @@ function formatDate(value: any) {
 export default async function ExploreQuestionBanksPage({
   searchParams,
 }: {
-  searchParams?: Record<string, string | string[] | undefined>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const { q } = normalizeSearchParams(searchParams);
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  const { q } = normalizeSearchParams(resolvedSearchParams);
 
   const res = await safeTrpcQuery("explore.questionBanks.list", {
     page: 1,

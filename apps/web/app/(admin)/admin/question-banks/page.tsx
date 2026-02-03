@@ -42,9 +42,11 @@ function formatDate(value: any) {
 export default async function AdminQuestionBanksPage({
   searchParams,
 }: {
-  searchParams?: Record<string, string | string[] | undefined>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const { q, userId, notice, error } = normalizeSearchParams(searchParams);
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  const { q, userId, notice, error } =
+    normalizeSearchParams(resolvedSearchParams);
 
   const res = await trpcQuery("questionBank.listWithQuestionCount", {
     page: 1,

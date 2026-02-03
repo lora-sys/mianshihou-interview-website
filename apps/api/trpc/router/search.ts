@@ -9,6 +9,34 @@ function systemOwnerCondition() {
   return and(eq(users.isDelete, false), eq(users.status, 'active'), eq(users.userRole, 'admin'));
 }
 
+function normalizeQuery(q: string) {
+  return (q ?? '').trim();
+}
+
+function expandKeywords(q: string) {
+  const keywords = new Set<string>();
+  const trimmed = normalizeQuery(q);
+  if (trimmed) keywords.add(trimmed);
+
+  if (trimmed.includes('系统精选')) {
+    keywords.add('系统');
+    keywords.add('精选');
+  }
+
+  for (const part of trimmed.split(/[\s,，;；/|]+/g)) {
+    const p = normalizeQuery(part);
+    if (p) keywords.add(p);
+  }
+
+  return Array.from(keywords);
+}
+
+function likeAny(column: any, patterns: string[]) {
+  if (patterns.length <= 0) throw new Error('patterns must not be empty');
+  if (patterns.length === 1) return like(column, patterns[0]);
+  return or(...patterns.map((p) => like(column, p)));
+}
+
 export const searchRouter = router({
   query: publicProcedure
     .input(
@@ -18,7 +46,9 @@ export const searchRouter = router({
       })
     )
     .query(async ({ ctx, input }) => {
-      const qLike = `%${input.q}%`;
+      const normalizedQ = normalizeQuery(input.q);
+      const patterns =
+        normalizedQ === '系统精选' ? ['%%'] : expandKeywords(normalizedQ).map((k) => `%${k}%`);
 
       const [systemQuestions, systemBanks] = await Promise.all([
         db
@@ -36,7 +66,11 @@ export const searchRouter = router({
             and(
               eq(questions.isDelete, false),
               systemOwnerCondition(),
-              or(like(questions.title, qLike), like(questions.tags, qLike))
+              or(
+                likeAny(questions.title, patterns),
+                likeAny(questions.tags, patterns),
+                likeAny(questions.content, patterns)
+              )
             )
           )
           .orderBy(desc(questions.updateTime))
@@ -56,7 +90,10 @@ export const searchRouter = router({
             and(
               eq(questionBanks.isDelete, false),
               systemOwnerCondition(),
-              or(like(questionBanks.title, qLike), like(questionBanks.description, qLike))
+              or(
+                likeAny(questionBanks.title, patterns),
+                likeAny(questionBanks.description, patterns)
+              )
             )
           )
           .orderBy(desc(questionBanks.updateTime))
@@ -66,7 +103,7 @@ export const searchRouter = router({
       if (!ctx.user) {
         return success(
           {
-            q: input.q,
+            q: normalizedQ,
             system: { questions: systemQuestions, questionBanks: systemBanks },
             mine: null,
           },
@@ -89,7 +126,11 @@ export const searchRouter = router({
             and(
               eq(questions.isDelete, false),
               eq(questions.userId, ctx.user.id),
-              or(like(questions.title, qLike), like(questions.tags, qLike))
+              or(
+                likeAny(questions.title, patterns),
+                likeAny(questions.tags, patterns),
+                likeAny(questions.content, patterns)
+              )
             )
           )
           .orderBy(desc(questions.updateTime))
@@ -108,7 +149,10 @@ export const searchRouter = router({
             and(
               eq(questionBanks.isDelete, false),
               eq(questionBanks.userId, ctx.user.id),
-              or(like(questionBanks.title, qLike), like(questionBanks.description, qLike))
+              or(
+                likeAny(questionBanks.title, patterns),
+                likeAny(questionBanks.description, patterns)
+              )
             )
           )
           .orderBy(desc(questionBanks.updateTime))
@@ -117,7 +161,7 @@ export const searchRouter = router({
 
       return success(
         {
-          q: input.q,
+          q: normalizedQ,
           system: { questions: systemQuestions, questionBanks: systemBanks },
           mine: { questions: myQuestions, questionBanks: myBanks },
         },

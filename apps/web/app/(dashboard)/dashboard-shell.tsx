@@ -58,7 +58,7 @@ export function DashboardShell({
         <aside className="hidden w-72 shrink-0 md:block">
           <div className="sticky top-6 space-y-4">
             <div className="rounded-2xl border bg-card/70 p-4 shadow-sm backdrop-blur">
-              <div className="flex items-center gap-3">
+              <Link href="/" className="flex items-center gap-3">
                 <div className="grid h-11 w-11 place-items-center rounded-2xl border bg-background/70">
                   <Image
                     src="/logo.png"
@@ -77,7 +77,7 @@ export function DashboardShell({
                     {user.userName || user.email || "已登录"}
                   </div>
                 </div>
-              </div>
+              </Link>
             </div>
 
             <div className="rounded-2xl border bg-card/60 p-2 shadow-sm backdrop-blur">

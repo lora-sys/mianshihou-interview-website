@@ -37,9 +37,10 @@ function formatDateTime(value: any) {
 export default async function AdminUsersPage({
   searchParams,
 }: {
-  searchParams?: Record<string, string | string[] | undefined>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const { q, page } = normalizeSearchParams(searchParams);
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  const { q, page } = normalizeSearchParams(resolvedSearchParams);
 
   const res = await trpcQuery("users.list", {
     page,
