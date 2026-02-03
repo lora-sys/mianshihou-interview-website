@@ -12,6 +12,7 @@ import { rateLimitMiddlewares } from './middlewares/rate-limit';
 import { getRedisManager } from './lib/redis';
 import { startCleanupTasks, stopCleanupTasks } from './tasks/cleanup-schedule';
 import { performHealthCheck, performLivenessCheck } from './lib/health';
+import { closeDb } from './index';
 
 const fastify = Fastify({
   logger:
@@ -49,7 +50,14 @@ fastify.register(fastifyCors, {
   origin: corsOrigin,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   credentials: true,
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization',
+    'X-Requested-With',
+    'Accept',
+    'Origin',
+    'X-Device-Id',
+  ],
   exposedHeaders: ['X-Request-Id', 'Content-Length', 'Content-Type'],
   maxAge: 86400,
 });
@@ -237,6 +245,7 @@ async function gracefulShutdown(signal: string) {
   // 停止清理任务
   stopCleanupTasks();
   await fastify.close();
+  await closeDb();
   process.exit(0);
 }
 

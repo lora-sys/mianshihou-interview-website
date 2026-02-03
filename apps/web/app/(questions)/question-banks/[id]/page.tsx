@@ -17,6 +17,7 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { useMemo, useState } from "react";
 import { PageMessage, PageSpinner } from "@/components/states";
+import { ConfirmButton } from "@/components/dialog/confirm-button";
 
 export default function QuestionBankDetailPage() {
   const params = useParams();
@@ -159,20 +160,18 @@ export default function QuestionBankDetailPage() {
             编辑
           </Link>
         </Button>
-        <Button
-          variant="destructive"
-          disabled={deleteBankMutation.isPending}
-          onClick={() => {
-            const ok = window.confirm(
-              "确定删除这个题库吗？题库内题目不会被删除。",
-            );
-            if (!ok) return;
-            deleteBankMutation.mutate({ id: Number(bank.id) });
-          }}
+        <ConfirmButton
+          title="确定删除这个题库吗？"
+          description="题库内题目不会被删除。此操作不可撤销。"
+          confirmText="删除题库"
+          triggerVariant="destructive"
+          confirmVariant="destructive"
+          pending={deleteBankMutation.isPending}
+          onConfirm={() => deleteBankMutation.mutate({ id: Number(bank.id) })}
         >
           <Trash2 className="w-4 h-4 mr-2" />
           删除题库
-        </Button>
+        </ConfirmButton>
       </div>
 
       <Card>
@@ -316,22 +315,24 @@ export default function QuestionBankDetailPage() {
                       {q.content}
                     </p>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                    disabled={removeMutation.isPending}
-                    onClick={() => {
-                      const ok = window.confirm("从题库移除该题目？");
-                      if (!ok) return;
+                  <ConfirmButton
+                    title="从题库移除该题目？"
+                    description="仅从当前题库移除，不会删除题目本身。"
+                    confirmText="移除"
+                    triggerVariant="ghost"
+                    triggerSize="sm"
+                    triggerClassName="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    confirmVariant="destructive"
+                    pending={removeMutation.isPending}
+                    onConfirm={() =>
                       removeMutation.mutate({
                         questionBankId: Number(bank.id),
                         questionId: Number(q.id),
-                      });
-                    }}
+                      })
+                    }
                   >
                     移除
-                  </Button>
+                  </ConfirmButton>
                 </div>
               ))}
             </div>

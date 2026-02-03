@@ -1,9 +1,11 @@
 import { DashboardShell } from "./dashboard-shell";
+import { requireUser } from "@/lib/auth/guards";
 
-export default function DashboardLayout({
+export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return <DashboardShell>{children}</DashboardShell>;
+  const user = await requireUser("/dashboard");
+  return <DashboardShell user={user}>{children}</DashboardShell>;
 }

@@ -1,17 +1,14 @@
-import { redirect } from "next/navigation";
 import TopNav from "@/components/top-nav";
 import Link from "next/link";
 import { Button } from "@repo/ui";
-import { getCurrentUser } from "@/lib/trpc/server";
+import { requireAdmin } from "@/lib/auth/guards";
 
 export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const user = await getCurrentUser();
-  if (!user) redirect("/login?redirect=/admin");
-  if (user.userRole !== "admin") redirect("/dashboard");
+  await requireAdmin("/admin");
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">

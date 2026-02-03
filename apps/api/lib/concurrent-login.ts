@@ -2,6 +2,9 @@ import { redis } from './redis';
 import { logger } from './logger';
 import { AppError } from './errors';
 import { generateDeviceInfo } from './device-fingerprint';
+import { db } from '../index';
+import { sessions } from '../db/schema';
+import { inArray } from 'drizzle-orm';
 
 export interface ConcurrentConfig {
   maxDevices: number;
@@ -20,10 +23,11 @@ export async function handleConcurrentLogin(
   userId: string,
   ip: string,
   userAgent: string,
+  deviceId: string | null,
   sessionId: string,
   config: ConcurrentConfig = DEFAULT_CONFIG
-): Promise<{ allowed: boolean; message?: string }> {
-  const deviceInfo = generateDeviceInfo(ip, userAgent);
+): Promise<{ allowed: boolean; message?: string; meta?: Record<string, any> }> {
+  const deviceInfo = generateDeviceInfo(ip, userAgent, deviceId);
 
   try {
     // 获取分布式锁，防止并发问题
@@ -59,6 +63,11 @@ export async function handleConcurrentLogin(
             return {
               allowed: false,
               message: `登录失败：您已在${uniqueDevices}个设备上登录，达到上限`,
+              meta: {
+                maxDevices: config.maxDevices,
+                currentDevices: uniqueDevices,
+                strategy: config.onNewLogin,
+              },
             };
           case 'kick_oldest':
             await removeOldestDevice(userId);
@@ -102,6 +111,12 @@ export async function handleConcurrentLogin(
     // 出错时允许登录，避免阻塞用户
     return { allowed: true };
   }
+}
+
+async function revokeTokens(tokens: string[]) {
+  const valid = tokens.filter(Boolean);
+  if (valid.length === 0) return;
+  await db.delete(sessions).where(inArray(sessions.token, valid));
 }
 
 /**
@@ -182,6 +197,7 @@ async function removeOldestDevice(userId: string): Promise<void> {
   for (const sessionId of sessions) {
     await redis.del(`session:${sessionId}`);
   }
+  await revokeTokens(sessions);
 
   // 删除设备相关数据
   await redis.del(sessionsKey);
@@ -240,6 +256,7 @@ export async function revokeDevice(userId: string, deviceFingerprint: string): P
   for (const sessionId of sessions) {
     await redis.del(`session:${sessionId}`);
   }
+  await revokeTokens(sessions);
 
   // 删除设备相关数据
   await redis.del(sessionsKey);
@@ -287,7 +304,10 @@ export async function cleanupUserSessions(
 /**
  * 踢出用户的所有设备
  */
-export async function revokeAllDevices(userId: string): Promise<void> {
+export async function revokeAllDevices(
+  userId: string,
+  excludeFingerprint?: string | null
+): Promise<void> {
   const devicesKey = `devices:${userId}`;
 
   // 获取所有设备
@@ -295,6 +315,7 @@ export async function revokeAllDevices(userId: string): Promise<void> {
 
   // 移除每个设备
   for (const fingerprint of devices) {
+    if (excludeFingerprint && fingerprint === excludeFingerprint) continue;
     await revokeDevice(userId, fingerprint);
   }
 

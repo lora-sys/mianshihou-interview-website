@@ -20,6 +20,7 @@ import {
   revokeAllDevices,
 } from '../../lib/concurrent-login';
 import { generateDeviceInfo } from '../../lib/device-fingerprint';
+import { issueAccessToken } from '../../lib/jwt';
 
 function applyAuthResponseHeaders(reply: any, headers: Headers | null | undefined) {
   if (!reply || !headers) return;
@@ -120,13 +121,23 @@ export const authRouter = router({
         // 获取客户端 IP 和 User-Agent
         const ip = ctx.req.ip || (ctx.req.headers['x-forwarded-for'] as string) || 'unknown';
         const userAgent = (ctx.req.headers['user-agent'] as string) || 'unknown';
+        const deviceId = (ctx.req.headers['x-device-id'] as string) || null;
+        const maxDevicesRaw = Number(process.env.MAX_LOGIN_DEVICES ?? '3');
+        const maxDevices = Number.isFinite(maxDevicesRaw) && maxDevicesRaw > 0 ? maxDevicesRaw : 3;
+        const strategyRaw = String(process.env.ON_NEW_LOGIN_STRATEGY ?? 'kick_oldest');
+        const onNewLogin =
+          strategyRaw === 'deny' || strategyRaw === 'allow' || strategyRaw === 'kick_oldest'
+            ? strategyRaw
+            : 'kick_oldest';
 
         // 检查并发登录
         const concurrentCheck = await handleConcurrentLogin(
           response.user.id,
           ip,
           userAgent,
-          response.token
+          deviceId,
+          response.token,
+          { maxDevices, onNewLogin }
         );
 
         if (!concurrentCheck.allowed) {
@@ -137,6 +148,12 @@ export const authRouter = router({
           throw new TRPCError({
             code: 'FORBIDDEN',
             message: concurrentCheck.message || '达到设备登录上限',
+            cause: {
+              biz: {
+                code: 'DEVICE_LIMIT_REACHED',
+                ...(concurrentCheck.meta ?? {}),
+              },
+            },
           });
         }
 
@@ -187,6 +204,65 @@ export const authRouter = router({
     }
   }),
 
+  forgotPassword: publicProcedure
+    .input(
+      z.object({
+        email: z.string().email(),
+        redirectTo: z.string().optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const headers = headersFromRequest(ctx.req);
+      const result = await auth.api.requestPasswordReset({
+        body: {
+          email: input.email,
+          redirectTo: input.redirectTo,
+        },
+        headers,
+      });
+      return success(result, '已发送重置密码邮件（如邮箱存在）');
+    }),
+
+  resetPassword: publicProcedure
+    .input(
+      z.object({
+        token: z.string().min(1),
+        newPassword: z.string().min(6),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const headers = headersFromRequest(ctx.req);
+      const result = await auth.api.resetPassword({
+        body: { token: input.token, newPassword: input.newPassword },
+        headers,
+      });
+      return success(result, '重置密码成功');
+    }),
+
+  changePassword: publicProcedure
+    .input(
+      z.object({
+        currentPassword: z.string().min(1),
+        newPassword: z.string().min(6),
+        revokeOtherSessions: z.boolean().optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      if (!ctx.user) {
+        throw new TRPCError({ code: 'UNAUTHORIZED', message: '未登录' });
+      }
+      const headers = headersFromRequest(ctx.req);
+      const result = await auth.api.changePassword({
+        body: {
+          currentPassword: input.currentPassword,
+          newPassword: input.newPassword,
+          revokeOtherSessions: input.revokeOtherSessions,
+        },
+        headers,
+      });
+      return success(result, '修改密码成功');
+    }),
+
   getSession: publicProcedure.query(async ({ ctx }) => {
     log.debug('获取会话信息', { userId: ctx.user?.id });
 
@@ -206,6 +282,29 @@ export const authRouter = router({
       '获取会话成功'
     );
   }),
+
+  getJwt: publicProcedure
+    .input(
+      z
+        .object({
+          expiresInSeconds: z
+            .number()
+            .min(60)
+            .max(60 * 60 * 24 * 7)
+            .optional(),
+        })
+        .optional()
+    )
+    .query(async ({ ctx, input }) => {
+      if (!ctx.user) {
+        throw new TRPCError({ code: 'UNAUTHORIZED', message: '未登录' });
+      }
+      const { token, expiresAt } = await issueAccessToken({
+        userId: ctx.user.id,
+        expiresInSeconds: input?.expiresInSeconds,
+      });
+      return success({ token, expiresAt }, '获取 JWT 成功');
+    }),
 
   me: publicProcedure.query(async ({ ctx }) => {
     log.debug('获取用户资料', { userId: ctx.user?.id });
@@ -233,9 +332,17 @@ export const authRouter = router({
 
     log.debug('获取用户设备列表', { userId: ctx.user.id });
 
+    const ip = ctx.req.ip || (ctx.req.headers['x-forwarded-for'] as string) || 'unknown';
+    const userAgent = (ctx.req.headers['user-agent'] as string) || 'unknown';
+    const deviceId = (ctx.req.headers['x-device-id'] as string) || null;
+    const { fingerprint: currentFingerprint } = generateDeviceInfo(ip, userAgent, deviceId);
+
     const devices = await getUserActiveDevices(ctx.user.id);
 
-    return success(devices, '获取设备列表成功');
+    return success(
+      devices.map((d) => ({ ...d, isCurrent: d.fingerprint === currentFingerprint })),
+      '获取设备列表成功'
+    );
   }),
 
   /**
@@ -279,17 +386,10 @@ export const authRouter = router({
     // 获取当前设备的指纹
     const ip = ctx.req.ip || (ctx.req.headers['x-forwarded-for'] as string) || 'unknown';
     const userAgent = (ctx.req.headers['user-agent'] as string) || 'unknown';
-    const { fingerprint: currentFingerprint } = generateDeviceInfo(ip, userAgent);
+    const deviceId = (ctx.req.headers['x-device-id'] as string) || null;
+    const { fingerprint: currentFingerprint } = generateDeviceInfo(ip, userAgent, deviceId);
 
-    // 获取所有设备
-    const allDevices = await getUserActiveDevices(ctx.user.id);
-
-    // 踢出其他设备
-    for (const device of allDevices) {
-      if (device.fingerprint !== currentFingerprint) {
-        await revokeDevice(ctx.user.id, device.fingerprint);
-      }
-    }
+    await revokeAllDevices(ctx.user.id, currentFingerprint);
 
     log.info('用户踢出所有设备', { userId: ctx.user.id });
 

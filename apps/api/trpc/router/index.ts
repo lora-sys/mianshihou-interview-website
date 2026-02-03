@@ -9,6 +9,10 @@ import { postFavourRouter } from './postFavour';
 import { authRouter } from './auth';
 import { uploadRouter } from './upload';
 import { dashboardRouter } from './dashboard';
+import { exploreRouter } from './explore';
+import { searchRouter } from './search';
+import { questionFavourRouter } from './questionFavour';
+import { practiceRouter } from './practice';
 
 export const appRouter = router({
   users: userRouter,
@@ -16,6 +20,10 @@ export const appRouter = router({
   question: questionRouter,
   questionBanks: questionBankRouter.questionBanks,
   questionBank: questionBankRouter,
+  explore: exploreRouter,
+  search: searchRouter,
+  questionFavours: questionFavourRouter,
+  practice: practiceRouter,
   posts: postRouter.posts,
   postThumbs: postThumbRouter.postThumbs,
   postFavours: postFavourRouter.postFavours,

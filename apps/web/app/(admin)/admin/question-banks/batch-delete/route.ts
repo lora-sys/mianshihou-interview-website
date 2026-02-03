@@ -15,21 +15,31 @@ export async function POST(req: NextRequest) {
   const redirectTo = String(
     formData.get("redirect") ?? "/admin/question-banks",
   );
-  if (ids.length === 0)
-    return NextResponse.redirect(new URL(redirectTo, req.url));
+  const redirectUrl = new URL(redirectTo, req.url);
+  if (ids.length === 0) {
+    redirectUrl.searchParams.set("notice", "no-selection");
+    return NextResponse.redirect(redirectUrl, { status: 303 });
+  }
 
   const apiUrl = getApiUrl().replace(/\/$/, "");
   const url = new URL(`${apiUrl}/questionBank.batchDelete`);
   url.searchParams.set("batch", "1");
 
-  await fetch(url.toString(), {
+  const res = await fetch(url.toString(), {
     method: "POST",
     headers: {
       "content-type": "application/json",
       cookie: req.headers.get("cookie") ?? "",
+      "x-device-id": req.headers.get("x-device-id") ?? "",
     },
     body: JSON.stringify({ 0: { ids } }),
   });
 
-  return NextResponse.redirect(new URL(redirectTo, req.url));
+  if (!res.ok) {
+    redirectUrl.searchParams.set("error", "batch-delete-failed");
+    return NextResponse.redirect(redirectUrl, { status: 303 });
+  }
+
+  redirectUrl.searchParams.set("notice", "batch-deleted");
+  return NextResponse.redirect(redirectUrl, { status: 303 });
 }

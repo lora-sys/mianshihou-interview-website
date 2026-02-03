@@ -8,7 +8,12 @@ const PROTECTED_PREFIXES = [
   "/me",
   "/admin",
 ];
-const AUTH_PAGES = ["/login", "/register"];
+const AUTH_PAGES = [
+  "/login",
+  "/register",
+  "/forgot-password",
+  "/reset-password",
+];
 const SESSION_COOKIE = "mianshihou.session_token";
 
 function isProtectedPath(pathname: string) {

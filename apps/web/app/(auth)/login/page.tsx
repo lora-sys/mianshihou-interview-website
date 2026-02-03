@@ -20,7 +20,8 @@ import {
 } from "@repo/ui";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -34,13 +35,23 @@ type LoginValues = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectTo = searchParams.get("redirect") || "/dashboard";
+  const [conflictOpen, setConflictOpen] = useState(false);
+  const [pendingValues, setPendingValues] = useState<LoginValues | null>(null);
 
   const signInMutation = trpc.auth.signIn.useMutation({
     onSuccess(data: any) {
       toast.success(data.message || "登录成功");
-      router.push("/dashboard");
+      router.push(redirectTo);
     },
     onError(error: any) {
+      const biz = error?.data?.biz;
+      if (biz?.code === "DEVICE_LIMIT_REACHED") {
+        setConflictOpen(true);
+        toast.error(error.message || "登录冲突：达到设备上限");
+        return;
+      }
       toast.error(error.message || "登录失败");
     },
   });
@@ -54,7 +65,34 @@ export default function LoginPage() {
   });
 
   function onSubmit(values: LoginValues) {
+    setPendingValues(values);
     signInMutation.mutate(values);
+  }
+
+  const devicesQuery = trpc.auth.myDevices.useQuery(undefined, {
+    enabled: conflictOpen,
+  });
+  const revokeDeviceMutation = trpc.auth.revokeDevice.useMutation({
+    onSuccess() {
+      devicesQuery.refetch();
+    },
+    onError(err: any) {
+      toast.error(err.message || "操作失败");
+    },
+  });
+  const revokeAllMutation = trpc.auth.revokeAllDevices.useMutation({
+    onSuccess() {
+      devicesQuery.refetch();
+    },
+    onError(err: any) {
+      toast.error(err.message || "操作失败");
+    },
+  });
+
+  function retryLogin() {
+    if (!pendingValues) return;
+    setConflictOpen(false);
+    signInMutation.mutate(pendingValues);
   }
 
   return (
@@ -159,6 +197,80 @@ export default function LoginPage() {
             </div>
           </CardFooter>
         </Card>
+
+        {conflictOpen ? (
+          <div className="mt-4 rounded-2xl border bg-background/80 backdrop-blur p-4 shadow-lg">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="text-sm font-medium">登录冲突</div>
+                <div className="mt-1 text-xs text-muted-foreground">
+                  你已在多台设备登录。可以踢下线部分设备后继续登录。
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setConflictOpen(false)}
+              >
+                关闭
+              </Button>
+            </div>
+
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={() => revokeAllMutation.mutate()}
+                disabled={revokeAllMutation.isPending}
+              >
+                踢出其他设备
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={retryLogin}
+                disabled={signInMutation.isPending}
+              >
+                继续登录
+              </Button>
+            </div>
+
+            <div className="mt-3 space-y-2">
+              {(devicesQuery.data?.data ?? []).map((d: any) => (
+                <div
+                  key={d.fingerprint}
+                  className="flex items-center justify-between gap-3 rounded-xl border p-3"
+                >
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium truncate">
+                      {d.deviceName} {d.isCurrent ? "（当前）" : ""}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {d.platform} · {d.browser} · 会话数 {d.sessionCount ?? 0}
+                    </div>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() =>
+                      revokeDeviceMutation.mutate({
+                        deviceFingerprint: d.fingerprint,
+                      })
+                    }
+                    disabled={revokeDeviceMutation.isPending || d.isCurrent}
+                  >
+                    踢下线
+                  </Button>
+                </div>
+              ))}
+              {devicesQuery.isLoading ? (
+                <div className="text-xs text-muted-foreground">
+                  加载设备列表中...
+                </div>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
       </div>
     </div>
   );

@@ -6,6 +6,20 @@ services:
     container_name: mianshihou-postgres
     ports:
       - "5432:5432"
+    command:
+      [
+        "postgres",
+        "-c",
+        "max_connections=200",
+        "-c",
+        "shared_buffers=128MB",
+        "-c",
+        "effective_cache_size=512MB",
+        "-c",
+        "work_mem=4MB",
+        "-c",
+        "maintenance_work_mem=64MB"
+      ]
     environment:
       POSTGRES_USER: mianshihou
       POSTGRES_PASSWORD: 123456

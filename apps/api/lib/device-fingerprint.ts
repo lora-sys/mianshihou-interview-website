@@ -8,10 +8,14 @@ export interface DeviceInfo {
 }
 
 /**
- * 生成设备指纹（基于 IP 和 User-Agent）
+ * 生成设备指纹（优先使用客户端 deviceId，否则基于 IP 和 User-Agent）
  */
-export function generateDeviceFingerprint(ip: string, userAgent: string): string {
-  const raw = `${ip}:${userAgent}`;
+export function generateDeviceFingerprint(
+  ip: string,
+  userAgent: string,
+  deviceId?: string | null
+): string {
+  const raw = deviceId ? `device:${deviceId}` : `${ip}:${userAgent}`;
   return crypto.createHash('sha256').update(raw).digest('hex').substring(0, 16);
 }
 
@@ -59,8 +63,12 @@ export function parseDeviceInfo(userAgent: string): Omit<DeviceInfo, 'fingerprin
 /**
  * 生成完整设备信息
  */
-export function generateDeviceInfo(ip: string, userAgent: string): DeviceInfo {
-  const fingerprint = generateDeviceFingerprint(ip, userAgent);
+export function generateDeviceInfo(
+  ip: string,
+  userAgent: string,
+  deviceId?: string | null
+): DeviceInfo {
+  const fingerprint = generateDeviceFingerprint(ip, userAgent, deviceId);
   const { deviceName, platform, browser } = parseDeviceInfo(userAgent);
 
   return { fingerprint, deviceName, platform, browser };

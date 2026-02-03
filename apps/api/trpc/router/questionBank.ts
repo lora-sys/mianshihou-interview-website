@@ -2,7 +2,7 @@ import { router, publicProcedure } from '../index';
 import { protectedProcedure } from '../middleware/auth';
 import { z } from 'zod';
 import { questionBanks, questionBankQuestions, questions } from '../../db/schema';
-import { eq, desc, and, like, sql, inArray } from 'drizzle-orm';
+import { eq, desc, and, like, sql, inArray, or } from 'drizzle-orm';
 import { db } from '../../index';
 import { throwIfNull, throwIf, throwIfNot } from '../../lib/exception';
 import { ErrorType } from '../../lib/errors';
@@ -220,7 +220,13 @@ export const questionBankRouter = router({
         }
 
         if (input.title) {
-          conditions.push(like(questionBanks.title, `%${input.title}%`));
+          const qLike = `%${input.title}%`;
+          conditions.push(
+            or(
+              like(questionBanks.title, qLike),
+              sql`${questionBanks.description} like ${qLike}`
+            ) as any
+          );
         }
 
         const [data, totalResult] = await Promise.all([
@@ -687,7 +693,13 @@ export const questionBankRouter = router({
       }
 
       if (input.title) {
-        conditions.push(like(questionBanks.title, `%${input.title}%`));
+        const qLike = `%${input.title}%`;
+        conditions.push(
+          or(
+            like(questionBanks.title, qLike),
+            sql`${questionBanks.description} like ${qLike}`
+          ) as any
+        );
       }
 
       // 并行查询题库列表和总数

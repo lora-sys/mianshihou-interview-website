@@ -11,6 +11,7 @@ import {
 } from "@repo/ui";
 import { trpcQuery } from "@/lib/trpc/server";
 import { Search, Trash2 } from "lucide-react";
+import { ConfirmSubmit } from "@/components/dialog/confirm-submit";
 
 function normalizeSearchParams(
   searchParams: Record<string, string | string[] | undefined> | undefined,
@@ -136,6 +137,31 @@ export default async function AdminUsersPage({
                             <Link href={`/admin/users/${u.id}`}>查看</Link>
                           </Button>
                           <form
+                            action={`/admin/users/${u.id}/set-status`}
+                            method="POST"
+                          >
+                            <input
+                              type="hidden"
+                              name="redirect"
+                              value={
+                                q
+                                  ? `/admin/users?q=${encodeURIComponent(q)}`
+                                  : "/admin/users"
+                              }
+                            />
+                            <input
+                              type="hidden"
+                              name="status"
+                              value={
+                                u.status === "active" ? "disabled" : "active"
+                              }
+                            />
+                            <Button size="sm" variant="outline" type="submit">
+                              {u.status === "active" ? "禁用" : "解禁"}
+                            </Button>
+                          </form>
+                          <form
+                            id={`admin-user-delete-${u.id}`}
                             action={`/admin/users/${u.id}/delete`}
                             method="POST"
                           >
@@ -148,14 +174,18 @@ export default async function AdminUsersPage({
                                   : "/admin/users"
                               }
                             />
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              type="submit"
+                            <ConfirmSubmit
+                              formId={`admin-user-delete-${u.id}`}
+                              title="确定删除该用户吗？"
+                              description="此操作不可撤销。"
+                              confirmText="删除"
+                              triggerVariant="destructive"
+                              triggerSize="sm"
+                              confirmVariant="destructive"
                             >
                               <Trash2 className="h-4 w-4 mr-1" />
                               删除
-                            </Button>
+                            </ConfirmSubmit>
                           </form>
                         </div>
                       </td>

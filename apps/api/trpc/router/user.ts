@@ -1,6 +1,6 @@
 import { router, publicProcedure } from '../index';
 import { z } from 'zod';
-import { users } from '../../db/schema';
+import { users, sessions } from '../../db/schema';
 import { eq, and, desc, like } from 'drizzle-orm';
 import { db } from '../../index';
 import { throwIfNull, throwIf } from '../../lib/exception';
@@ -9,6 +9,7 @@ import { adminProcedure, adminOrOwnerProcedure } from '../middleware/permissions
 import { success, createPaginationMeta } from '../../lib/response-wrapper';
 import { sanitizeUser, sanitizeUsers } from '../../lib/data-sanitizer';
 import { transformUser, transformUsers } from '../../lib/field-transformer';
+import { redis } from '../../lib/redis';
 
 // 创建 adminOrOwner 的 procedure
 export const adminOrOwner = publicProcedure.use(adminOrOwnerProcedure);
@@ -258,6 +259,58 @@ export const userRouter = router({
         results,
         `批量删除用户完成：成功 ${results.success.length}，失败 ${results.failed.length}`
       );
+    }),
+
+  // Set user role - requires admin
+  setRole: adminProcedure
+    .input(
+      z.object({
+        id: z.string(),
+        role: z.enum(['user', 'admin']),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const [updatedUser] = await db
+        .update(users)
+        .set({ userRole: input.role, updateTime: new Date() })
+        .where(and(eq(users.id, input.id), eq(users.isDelete, false)))
+        .returning();
+      throwIfNull(updatedUser, ErrorType.USER_NOT_FOUND, undefined, { userId: input.id });
+      try {
+        await redis.del(`ctx_user:${input.id}`);
+      } catch {}
+      const sanitizedUser = sanitizeUser(updatedUser);
+      const transformedUser = transformUser(sanitizedUser);
+      return success(transformedUser, '更新用户角色成功');
+    }),
+
+  // Set user status - requires admin
+  setStatus: adminProcedure
+    .input(
+      z.object({
+        id: z.string(),
+        status: z.enum(['active', 'disabled']),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const [updatedUser] = await db
+        .update(users)
+        .set({ status: input.status, updateTime: new Date() })
+        .where(and(eq(users.id, input.id), eq(users.isDelete, false)))
+        .returning();
+      throwIfNull(updatedUser, ErrorType.USER_NOT_FOUND, undefined, { userId: input.id });
+      try {
+        await redis.del(`ctx_user:${input.id}`);
+      } catch {}
+
+      // 如果设置为禁用，清理会话
+      if (input.status === 'disabled') {
+        await db.delete(sessions).where(eq(sessions.userId, input.id));
+      }
+
+      const sanitizedUser = sanitizeUser(updatedUser);
+      const transformedUser = transformUser(sanitizedUser);
+      return success(transformedUser, '更新用户状态成功');
     }),
 
   // List users with statistics - requires admin

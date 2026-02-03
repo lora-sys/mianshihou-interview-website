@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Button } from "@repo/ui";
+import { Badge, Button } from "@repo/ui";
 import { getCurrentUser } from "@/lib/trpc/server";
 
 function Avatar({ name, src }: { name: string; src?: string | null }) {
@@ -42,14 +42,27 @@ export default async function TopNav() {
           </Link>
           <nav className="hidden items-center gap-1 md:flex">
             <Button asChild variant="ghost" size="sm">
-              <Link href="/dashboard">概览</Link>
+              <Link href="/explore/question-banks">精选题库</Link>
             </Button>
             <Button asChild variant="ghost" size="sm">
-              <Link href="/questions">题目</Link>
+              <Link href="/explore/questions">精选题目</Link>
             </Button>
             <Button asChild variant="ghost" size="sm">
-              <Link href="/question-banks">题库</Link>
+              <Link href="/search">搜索</Link>
             </Button>
+            {user ? (
+              <>
+                <Button asChild variant="ghost" size="sm">
+                  <Link href="/dashboard">我的</Link>
+                </Button>
+                <Button asChild variant="ghost" size="sm">
+                  <Link href="/questions">我的题目</Link>
+                </Button>
+                <Button asChild variant="ghost" size="sm">
+                  <Link href="/question-banks">我的题库</Link>
+                </Button>
+              </>
+            ) : null}
             {user?.userRole === "admin" ? (
               <Button asChild variant="ghost" size="sm">
                 <Link href="/admin">后台</Link>
@@ -64,6 +77,14 @@ export default async function TopNav() {
               asChild
               variant="ghost"
               size="sm"
+              className="hidden md:inline-flex"
+            >
+              <Link href="/me/security">账号安全</Link>
+            </Button>
+            <Button
+              asChild
+              variant="ghost"
+              size="sm"
               className="hidden sm:inline-flex"
             >
               <Link href="/me" className="flex items-center gap-2">
@@ -74,6 +95,11 @@ export default async function TopNav() {
                 <span className="max-w-40 truncate">
                   {user.userName || user.email}
                 </span>
+                {user.userRole === "admin" ? (
+                  <Badge variant="secondary" className="hidden lg:inline-flex">
+                    管理员
+                  </Badge>
+                ) : null}
               </Link>
             </Button>
             <Button asChild variant="outline" size="sm">

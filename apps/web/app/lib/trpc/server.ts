@@ -23,6 +23,9 @@ async function trpcFetch(url: string, init: RequestInit) {
   const cookieHeader = await buildCookieHeader();
   const headers = new Headers(init.headers);
   if (cookieHeader) headers.set("cookie", cookieHeader);
+  const store = await cookies();
+  const deviceId = store.get("mianshihou.device_id")?.value;
+  if (deviceId) headers.set("x-device-id", deviceId);
   headers.set("accept", "application/json");
   return fetch(url, {
     ...init,
@@ -50,6 +53,53 @@ export async function trpcQuery<
   return (first?.result?.data as TOutput) ?? (null as any);
 }
 
+export async function safeTrpcQuery<
+  TInput extends Record<string, any> | undefined,
+  TOutput = any,
+>(path: string, input?: TInput): Promise<TOutput | null> {
+  try {
+    return await trpcQuery<TInput, TOutput>(path, input);
+  } catch {
+    return null;
+  }
+}
+
+export async function trpcBatchQuery<TOutput = any>(
+  calls: Array<{ path: string; input?: Record<string, any> }>,
+): Promise<TOutput[]> {
+  const apiUrl = getApiUrl().replace(/\/$/, "");
+  const joinedPath = calls.map((c) => c.path).join(",");
+  const url = new URL(`${apiUrl}/${joinedPath}`);
+  url.searchParams.set("batch", "1");
+  const inputObj: Record<string, any> = {};
+  calls.forEach((c, idx) => {
+    inputObj[String(idx)] = c.input ?? {};
+  });
+  url.searchParams.set("input", JSON.stringify(inputObj));
+
+  const res = await trpcFetch(url.toString(), { method: "GET" });
+  const json = (await res.json()) as TRPCResponseEnvelope;
+
+  return calls.map((_, idx) => {
+    const item = json[idx];
+    if (item?.error) {
+      const message = item.error.message || "tRPC batch query failed";
+      throw new Error(message);
+    }
+    return (item?.result?.data as TOutput) ?? (null as any);
+  });
+}
+
+export async function safeTrpcBatchQuery<TOutput = any>(
+  calls: Array<{ path: string; input?: Record<string, any> }>,
+): Promise<Array<TOutput | null>> {
+  try {
+    return await trpcBatchQuery<TOutput>(calls);
+  } catch {
+    return calls.map(() => null);
+  }
+}
+
 export async function trpcMutation<
   TInput extends Record<string, any>,
   TOutput = any,
@@ -74,6 +124,6 @@ export async function trpcMutation<
 }
 
 export const getCurrentUser = cache(async () => {
-  const res = await trpcQuery("auth.getSession", {});
+  const res = await safeTrpcQuery("auth.getSession", {});
   return res?.data?.user ?? null;
 });

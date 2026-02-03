@@ -1,6 +1,12 @@
 {
   "$schema": "https://turborepo.dev/schema.json",
   "ui": "tui",
+  "globalEnv": [
+    "E2E_BASE_URL",
+    "E2E_EMAIL",
+    "E2E_PASSWORD",
+    "E2E_SKIP_WEB_SERVER"
+  ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],

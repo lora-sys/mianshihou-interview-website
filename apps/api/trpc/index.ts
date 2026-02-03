@@ -6,6 +6,8 @@ import { users } from '../db/schema';
 import { eq } from 'drizzle-orm';
 import { auth } from '../lib/auth';
 import { headersFromRequest } from '../lib/cookie-utils';
+import { redis } from '../lib/redis';
+import { verifyAccessToken } from '../lib/jwt';
 
 type FastifyRequestWithCookies = CreateFastifyContextOptions['req'] & {
   cookies?: Record<string, string>;
@@ -28,6 +30,7 @@ export async function createContextAsync(opts: CreateFastifyContextOptions) {
 
   let user = null;
   let session = null;
+  let tokenUserId: string | null = null;
 
   try {
     // 使用解耦的工具函数获取 Better-Auth Headers
@@ -38,27 +41,58 @@ export async function createContextAsync(opts: CreateFastifyContextOptions) {
       headers,
     });
 
-    if (session?.user) {
-      const [dbUser] = await db
-        .select({
-          id: users.id,
-          email: users.email,
-          userName: users.userName,
-          userAvatar: users.userAvatar,
-          userRole: users.userRole,
-          status: users.status,
-        })
-        .from(users)
-        .where(eq(users.id, session.user.id))
-        .limit(1);
+    const authHeader = String(opts.req.headers['authorization'] ?? '');
+    if (!session?.user && authHeader.toLowerCase().startsWith('bearer ')) {
+      const token = authHeader.slice(7).trim();
+      const verified = await verifyAccessToken(token);
+      tokenUserId = verified?.userId ?? null;
+    }
+
+    if (session?.user || tokenUserId) {
+      let dbUser: {
+        id: string;
+        email: string | null;
+        userName: string | null;
+        userAvatar: string | null;
+        userRole: string;
+        status: string;
+      } | null = null;
+
+      const userId = session?.user?.id ?? tokenUserId!;
+      const cacheKey = `ctx_user:${userId}`;
+      try {
+        const cached = await redis.get(cacheKey);
+        if (cached) dbUser = JSON.parse(cached);
+      } catch {}
+
+      if (!dbUser) {
+        const [row] = await db
+          .select({
+            id: users.id,
+            email: users.email,
+            userName: users.userName,
+            userAvatar: users.userAvatar,
+            userRole: users.userRole,
+            status: users.status,
+          })
+          .from(users)
+          .where(eq(users.id, userId))
+          .limit(1);
+        dbUser = row ?? null;
+        try {
+          if (dbUser) {
+            await redis.set(cacheKey, JSON.stringify(dbUser), 'EX', 60);
+          }
+        } catch {}
+      }
 
       user = {
-        id: session.user.id,
-        email: dbUser?.email ?? session.user.email,
-        userName: dbUser?.userName ?? session.user.name,
-        userAvatar: dbUser?.userAvatar ?? session.user.image,
-        userRole: dbUser?.userRole ?? (session.user.role || 'user'),
-        status: dbUser?.status ?? (session.user.status || 'active'),
+        id: userId,
+        email: dbUser?.email ?? session?.user?.email ?? null,
+        userName: dbUser?.userName ?? session?.user?.name ?? null,
+        userAvatar: dbUser?.userAvatar ?? session?.user?.image ?? null,
+        userRole: dbUser?.userRole ?? 'user',
+        status: dbUser?.status ?? 'active',
       };
       log.info('用户已登录', { userId: user.id, email: user.email });
     }
@@ -94,12 +128,15 @@ export type Context = {
 
 const t = initTRPC.context<Context>().create({
   errorFormatter({ shape, error }) {
+    const cause = error.cause as any;
+    const biz = cause && typeof cause === 'object' ? (cause.biz ?? null) : null;
     return {
       ...shape,
       success: false,
       data: {
         ...shape.data,
         zodError: error.cause instanceof Error ? error.cause.message : null,
+        ...(biz ? { biz } : {}),
         ...(process.env.NODE_ENV === 'development' && { stack: error.stack }),
       },
     };

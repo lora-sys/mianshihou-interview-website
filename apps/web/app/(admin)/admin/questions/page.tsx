@@ -11,15 +11,26 @@ import {
 } from "@repo/ui";
 import { trpcQuery } from "@/lib/trpc/server";
 import { Search, Trash2 } from "lucide-react";
+import { ConfirmSubmit } from "@/components/dialog/confirm-submit";
+import { ConfirmFormAction } from "@/components/dialog/confirm-form-action";
 
 function normalizeSearchParams(
   searchParams: Record<string, string | string[] | undefined> | undefined,
 ) {
   const qRaw = searchParams?.q;
   const uidRaw = searchParams?.userId;
+  const noticeRaw = searchParams?.notice;
+  const errorRaw = searchParams?.error;
   const q = Array.isArray(qRaw) ? qRaw[0] : qRaw;
   const userId = Array.isArray(uidRaw) ? uidRaw[0] : uidRaw;
-  return { q: (q ?? "").trim(), userId: (userId ?? "").trim() };
+  const notice = Array.isArray(noticeRaw) ? noticeRaw[0] : noticeRaw;
+  const error = Array.isArray(errorRaw) ? errorRaw[0] : errorRaw;
+  return {
+    q: (q ?? "").trim(),
+    userId: (userId ?? "").trim(),
+    notice: (notice ?? "").trim(),
+    error: (error ?? "").trim(),
+  };
 }
 
 function parseTags(value: any): string[] {
@@ -51,7 +62,7 @@ export default async function AdminQuestionsPage({
 }: {
   searchParams?: Record<string, string | string[] | undefined>;
 }) {
-  const { q, userId } = normalizeSearchParams(searchParams);
+  const { q, userId, notice, error } = normalizeSearchParams(searchParams);
 
   const res = await trpcQuery("questions.list", {
     page: 1,
@@ -65,6 +76,23 @@ export default async function AdminQuestionsPage({
 
   return (
     <div className="space-y-4">
+      {notice || error ? (
+        <div
+          className={
+            error
+              ? "rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm"
+              : "rounded-xl border bg-muted/30 px-4 py-3 text-sm"
+          }
+        >
+          {error === "batch-delete-failed"
+            ? "批量删除失败，请稍后重试。"
+            : notice === "no-selection"
+              ? "未选择任何条目。"
+              : notice === "batch-deleted"
+                ? "批量删除已提交。"
+                : null}
+        </div>
+      ) : null}
       <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div className="space-y-1">
           <h2 className="text-xl font-semibold tracking-tight">题目管理</h2>
@@ -116,7 +144,11 @@ export default async function AdminQuestionsPage({
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          <form action="/admin/questions/batch-delete" method="POST">
+          <form
+            id="admin-questions-batch-delete"
+            action="/admin/questions/batch-delete"
+            method="POST"
+          >
             <input
               type="hidden"
               name="redirect"
@@ -203,16 +235,19 @@ export default async function AdminQuestionsPage({
                               <Button asChild size="sm" variant="outline">
                                 <Link href={`/questions/${it.id}`}>查看</Link>
                               </Button>
-                              <Button
-                                size="sm"
-                                variant="destructive"
-                                type="submit"
+                              <ConfirmFormAction
+                                title="确定删除该题目吗？"
+                                description="此操作不可撤销。"
+                                confirmText="删除"
+                                triggerVariant="destructive"
+                                triggerSize="sm"
+                                confirmVariant="destructive"
                                 formAction={`/admin/questions/${it.id}/delete`}
                                 formMethod="post"
                               >
                                 <Trash2 className="h-4 w-4 mr-1" />
                                 删除
-                              </Button>
+                              </ConfirmFormAction>
                             </div>
                           </td>
                         </tr>
@@ -232,9 +267,17 @@ export default async function AdminQuestionsPage({
               </table>
             </div>
             <div className="border-t bg-background px-4 py-3 flex justify-end">
-              <Button size="sm" variant="destructive" type="submit">
+              <ConfirmSubmit
+                formId="admin-questions-batch-delete"
+                title="批量删除已勾选题目？"
+                description="此操作不可撤销。"
+                confirmText="批量删除"
+                triggerVariant="destructive"
+                triggerSize="sm"
+                confirmVariant="destructive"
+              >
                 批量删除（已勾选）
-              </Button>
+              </ConfirmSubmit>
             </div>
           </form>
         </CardContent>

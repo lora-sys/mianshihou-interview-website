@@ -95,6 +95,52 @@ export default async function AdminUserDetailPage({
           </form>
         </CardContent>
       </Card>
+
+      <Card className="shadow-sm">
+        <CardHeader>
+          <CardTitle>角色与状态</CardTitle>
+          <CardDescription>仅管理员可修改。角色变更立即生效。</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <form
+            action={`/admin/users/${id}/set-role`}
+            method="POST"
+            className="flex items-center gap-2"
+          >
+            <input type="hidden" name="redirect" value={`/admin/users/${id}`} />
+            <select
+              name="role"
+              defaultValue={u?.userRole ?? "user"}
+              className="h-9 rounded-md border bg-background px-3 text-sm"
+            >
+              <option value="user">user</option>
+              <option value="admin">admin</option>
+            </select>
+            <Button type="submit" size="sm" variant="outline">
+              更新角色
+            </Button>
+          </form>
+
+          <form
+            action={`/admin/users/${id}/set-status`}
+            method="POST"
+            className="flex items-center gap-2"
+          >
+            <input type="hidden" name="redirect" value={`/admin/users/${id}`} />
+            <select
+              name="status"
+              defaultValue={u?.status ?? "active"}
+              className="h-9 rounded-md border bg-background px-3 text-sm"
+            >
+              <option value="active">active</option>
+              <option value="disabled">disabled</option>
+            </select>
+            <Button type="submit" size="sm" variant="outline">
+              更新状态
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   );
 }

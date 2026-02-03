@@ -2,12 +2,10 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { usePathname } from "next/navigation";
 import { BookOpen, FileText, LayoutDashboard, LogOut } from "lucide-react";
 import { Button } from "@repo/ui";
 import { cn } from "@/lib/utils";
-import { trpc } from "@/lib/trpc/client";
 
 function NavItem({
   href,
@@ -47,34 +45,13 @@ function NavItem({
   );
 }
 
-export function DashboardShell({ children }: { children: React.ReactNode }) {
-  const router = useRouter();
-  const sessionQuery = trpc.auth.getSession.useQuery();
-
-  useEffect(() => {
-    if (sessionQuery.isLoading) return;
-    const user = sessionQuery.data?.data?.user ?? null;
-    if (!user) router.replace("/login");
-  }, [router, sessionQuery.data?.data?.user, sessionQuery.isLoading]);
-
-  if (sessionQuery.isLoading || !sessionQuery.data?.data?.user) {
-    return (
-      <div className="min-h-screen grid place-items-center bg-background">
-        <div className="w-full max-w-sm rounded-2xl border bg-card p-6 shadow-sm">
-          <div className="h-10 w-40 rounded-lg bg-muted animate-pulse" />
-          <div className="mt-6 space-y-3">
-            <div className="h-11 w-full rounded-xl bg-muted animate-pulse" />
-            <div className="h-11 w-full rounded-xl bg-muted animate-pulse" />
-            <div className="h-11 w-full rounded-xl bg-muted animate-pulse" />
-          </div>
-          <div className="mt-8 h-10 w-full rounded-xl bg-muted animate-pulse" />
-        </div>
-      </div>
-    );
-  }
-
-  const user = sessionQuery.data.data.user;
-
+export function DashboardShell({
+  user,
+  children,
+}: {
+  user: { email?: string | null } | any;
+  children: React.ReactNode;
+}) {
   return (
     <div className="min-h-screen bg-background">
       <div className="mx-auto flex min-h-screen w-full max-w-[1400px] gap-6 px-4 py-6 md:px-6">
@@ -97,7 +74,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                     面试猴
                   </div>
                   <div className="truncate text-xs text-muted-foreground">
-                    {user.email ?? "已登录"}
+                    {user.userName || user.email || "已登录"}
                   </div>
                 </div>
               </div>

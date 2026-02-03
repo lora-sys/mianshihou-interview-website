@@ -242,3 +242,37 @@ export const postFavours = pgTable(
   },
   (table) => [uniqueIndex('uk_post_favour').on(table.postId, table.userId)]
 );
+
+// 题目收藏表
+export const questionFavours = pgTable(
+  'question_favour',
+  {
+    id: bigserial('id', { mode: 'bigint' }).primaryKey(),
+    questionId: integer('question_id')
+      .notNull()
+      .references(() => questions.id, { onDelete: 'cascade' }),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    createTime: timestamp('create_time').defaultNow().notNull(),
+  },
+  (table) => [uniqueIndex('uk_question_favour').on(table.questionId, table.userId)]
+);
+
+// 题目练习记录表
+export const questionPractices = pgTable(
+  'question_practice',
+  {
+    id: bigserial('id', { mode: 'bigint' }).primaryKey(),
+    questionId: integer('question_id')
+      .notNull()
+      .references(() => questions.id, { onDelete: 'cascade' }),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    doneAt: timestamp('done_at').defaultNow().notNull(),
+    score: integer('score'),
+    createTime: timestamp('create_time').defaultNow().notNull(),
+  },
+  (table) => [index('idx_question_practice_user_id').on(table.userId)]
+);

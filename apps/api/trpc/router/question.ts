@@ -2,7 +2,7 @@ import { router, publicProcedure } from '../index';
 import { protectedProcedure } from '../middleware/auth';
 import { z } from 'zod';
 import { questions } from '../../db/schema';
-import { eq, desc, and, like } from 'drizzle-orm';
+import { eq, desc, and, like, or, sql } from 'drizzle-orm';
 import { db } from '../../index';
 import { throwIfNull, throwIf } from '../../lib/exception';
 import { ErrorType } from '../../lib/errors';
@@ -252,32 +252,42 @@ export const questionRouter = router({
         }
 
         if (input.title) {
-          conditions.push(like(questions.title, `%${input.title}%`));
+          const qLike = `%${input.title}%`;
+          conditions.push(
+            or(like(questions.title, qLike), sql`${questions.tags} like ${qLike}`) as any
+          );
         }
         if (input.questionBankId) {
           conditions.push(eq(questions.questionBankId, input.questionBankId));
         }
 
-        const [data, totalResult] = await Promise.all([
+        const [data, totalRes] = await Promise.all([
           db
-            .select()
+            .select({
+              id: questions.id,
+              title: questions.title,
+              content: questions.content,
+              tags: questions.tags,
+              userId: questions.userId,
+              questionBankId: questions.questionBankId,
+              createTime: questions.createTime,
+              updateTime: questions.updateTime,
+            })
             .from(questions)
             .where(and(...conditions))
             .offset(offset)
             .limit(input.pageSize)
             .orderBy(desc(questions.createTime)),
           db
-            .select()
+            .select({ count: sql<number>`count(*)` })
             .from(questions)
             .where(and(...conditions)),
         ]);
 
-        ctx.logger.info(
-          { count: data.length, total: totalResult.length, page: input.page },
-          '查询题目列表成功'
-        );
+        const total = Number((totalRes?.[0] as any)?.count ?? 0);
+        ctx.logger.info({ count: data.length, total, page: input.page }, '查询题目列表成功');
 
-        const pagination = createPaginationMeta(input.page, input.pageSize, totalResult.length);
+        const pagination = createPaginationMeta(input.page, input.pageSize, total);
         return paginate(data, pagination, '查询题目列表成功');
       }),
   }),

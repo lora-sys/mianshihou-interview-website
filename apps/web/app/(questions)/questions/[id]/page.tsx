@@ -9,6 +9,7 @@ import { ArrowLeft, Pencil, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { PageMessage, PageSpinner } from "@/components/states";
+import { ConfirmButton } from "@/components/dialog/confirm-button";
 
 export default function QuestionDetailPage() {
   const params = useParams();
@@ -102,18 +103,18 @@ export default function QuestionDetailPage() {
               编辑
             </Link>
           </Button>
-          <Button
-            variant="destructive"
-            disabled={deleteMutation.isPending}
-            onClick={() => {
-              const ok = window.confirm("确定删除这道题吗？");
-              if (!ok) return;
-              deleteMutation.mutate({ id: Number(question.id) });
-            }}
+          <ConfirmButton
+            title="确定删除这道题吗？"
+            description="此操作不可撤销。"
+            confirmText="删除"
+            triggerVariant="destructive"
+            confirmVariant="destructive"
+            pending={deleteMutation.isPending}
+            onConfirm={() => deleteMutation.mutate({ id: Number(question.id) })}
           >
             <Trash2 className="w-4 h-4 mr-2" />
             删除
-          </Button>
+          </ConfirmButton>
         </div>
       </div>
 
