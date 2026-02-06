@@ -6,10 +6,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@repo/ui";
 import { Badge } from "@repo/ui";
 import { Button } from "@repo/ui";
 import { ArrowLeft, Pencil, Trash2 } from "lucide-react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
-import { toast } from "sonner";
 import { PageMessage, PageSpinner } from "@/components/states";
-import { ConfirmButton } from "@/components/dialog/confirm-button";
+import { parseTags } from "@/lib/utils";
+
+const ConfirmButton = dynamic(
+  () => import("@/components/confirm-button").then((m) => m.ConfirmButton),
+  { ssr: false },
+);
 
 export default function QuestionDetailPage() {
   const params = useParams();
@@ -17,12 +22,14 @@ export default function QuestionDetailPage() {
   const id = Number((params as any)?.id);
   const utils = trpc.useUtils?.();
   const deleteMutation = trpc.questions.delete.useMutation({
-    onSuccess() {
+    async onSuccess() {
+      const { toast } = await import("sonner");
       toast.success("已删除");
       void utils?.questions?.list?.invalidate?.();
       router.replace("/questions");
     },
-    onError(err: any) {
+    async onError(err: any) {
+      const { toast } = await import("sonner");
       toast.error(err?.message ?? "删除失败");
     },
   });
@@ -39,23 +46,6 @@ export default function QuestionDetailPage() {
   );
 
   const question = questionRes?.data;
-
-  function parseTags(value: any): string[] {
-    if (!value) return [];
-    if (Array.isArray(value)) return value.map(String);
-    if (typeof value === "string") {
-      try {
-        const parsed = JSON.parse(value);
-        if (Array.isArray(parsed)) return parsed.map(String);
-      } catch {
-        return value
-          .split(",")
-          .map((s) => s.trim())
-          .filter(Boolean);
-      }
-    }
-    return [];
-  }
 
   if (isLoading) {
     return <PageSpinner label="加载题目详情..." />;

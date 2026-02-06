@@ -10,37 +10,18 @@ import {
   CardTitle,
 } from "@repo/ui";
 import { getCurrentUser, safeTrpcBatchQuery } from "@/lib/trpc/server";
-
-function formatDate(value: any) {
-  if (!value) return "-";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return "-";
-  return d.toLocaleDateString("zh-CN");
-}
-
-function parseTags(value: any): string[] {
-  if (!value) return [];
-  if (Array.isArray(value)) return value.map(String);
-  if (typeof value === "string") {
-    try {
-      const parsed = JSON.parse(value);
-      if (Array.isArray(parsed)) return parsed.map(String);
-    } catch {
-      return value
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean);
-    }
-  }
-  return [];
-}
+import { formatDate, parseTags } from "@/lib/utils";
 
 export default async function HomePage() {
-  const user = await getCurrentUser();
-
-  const [systemQuestionsRes, systemBanksRes] = await safeTrpcBatchQuery([
-    { path: "explore.questions.getRecent", input: { limit: 10 } },
-    { path: "explore.questionBanks.getRecent", input: { limit: 10 } },
+  const [user, [systemQuestionsRes, systemBanksRes]] = await Promise.all([
+    getCurrentUser(),
+    safeTrpcBatchQuery(
+      [
+        { path: "explore.questions.getRecent", input: { limit: 10 } },
+        { path: "explore.questionBanks.getRecent", input: { limit: 10 } },
+      ],
+      { next: { revalidate: 60 } },
+    ),
   ]);
 
   const [myQuestionsRes, myBanksRes] = user
@@ -63,7 +44,7 @@ export default async function HomePage() {
           <div className="space-y-2">
             <h1 className="text-3xl font-semibold tracking-tight">首页</h1>
             <p className="text-sm text-muted-foreground">
-              系统内置精选题库与题目，直接开始刷题。
+              海量精选题库与真题，助你轻松应对面试挑战。
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -82,7 +63,7 @@ export default async function HomePage() {
                   <Link href="/explore/question-banks">浏览题库</Link>
                 </Button>
                 <Button asChild>
-                  <Link href="/login">登录保存进度</Link>
+                  <Link href="/login">登录开启刷题</Link>
                 </Button>
               </>
             )}

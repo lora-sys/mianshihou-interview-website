@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Badge, Button } from "@repo/ui";
 import { getCurrentUser } from "@/lib/trpc/server";
-import { MobileNav } from "@/components/mobile-nav";
+import { MobileNavLoader } from "@/components/mobile-nav-loader";
 
 function Avatar({ name, src }: { name: string; src?: string | null }) {
   if (src) {
@@ -41,7 +41,10 @@ export default async function TopNav() {
             />
             面试猴
           </Link>
-          <MobileNav isLoggedIn={!!user} isAdmin={user?.userRole === "admin"} />
+          <MobileNavLoader
+            isLoggedIn={!!user}
+            isAdmin={user?.userRole === "admin"}
+          />
           <nav className="hidden items-center gap-1 md:flex">
             <Button asChild variant="ghost" size="sm">
               <Link href="/explore/question-banks">精选题库</Link>

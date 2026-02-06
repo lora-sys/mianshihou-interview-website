@@ -10,6 +10,7 @@ import {
 } from "@repo/ui";
 import { safeTrpcQuery } from "@/lib/trpc/server";
 import { Search } from "lucide-react";
+import { parseTags } from "@/lib/utils";
 
 function normalizeSearchParams(
   searchParams: Record<string, string | string[] | undefined> | undefined,
@@ -17,23 +18,6 @@ function normalizeSearchParams(
   const qRaw = searchParams?.q;
   const q = Array.isArray(qRaw) ? qRaw[0] : qRaw;
   return { q: (q ?? "").trim() };
-}
-
-function parseTags(value: any): string[] {
-  if (!value) return [];
-  if (Array.isArray(value)) return value.map(String);
-  if (typeof value === "string") {
-    try {
-      const parsed = JSON.parse(value);
-      if (Array.isArray(parsed)) return parsed.map(String);
-    } catch {
-      return value
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean);
-    }
-  }
-  return [];
 }
 
 function highlight(text: string, q: string) {

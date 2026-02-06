@@ -9,10 +9,17 @@ import {
   CardTitle,
   Input,
 } from "@repo/ui";
+import dynamic from "next/dynamic";
 import { trpcQuery } from "@/lib/trpc/server";
 import { Search, Trash2 } from "lucide-react";
-import { ConfirmSubmit } from "@/components/dialog/confirm-submit";
-import { ConfirmFormAction } from "@/components/dialog/confirm-form-action";
+import { formatDate, parseTags } from "@/lib/utils";
+
+const ConfirmSubmit = dynamic(() =>
+  import("@/components/confirm-submit").then((m) => m.ConfirmSubmit),
+);
+const ConfirmFormAction = dynamic(() =>
+  import("@/components/confirm-form-action").then((m) => m.ConfirmFormAction),
+);
 
 function normalizeSearchParams(
   searchParams: Record<string, string | string[] | undefined> | undefined,
@@ -31,30 +38,6 @@ function normalizeSearchParams(
     notice: (notice ?? "").trim(),
     error: (error ?? "").trim(),
   };
-}
-
-function parseTags(value: any): string[] {
-  if (!value) return [];
-  if (Array.isArray(value)) return value.map(String);
-  if (typeof value === "string") {
-    try {
-      const parsed = JSON.parse(value);
-      if (Array.isArray(parsed)) return parsed.map(String);
-    } catch {
-      return value
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean);
-    }
-  }
-  return [];
-}
-
-function formatDate(value: any) {
-  if (!value) return "-";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return "-";
-  return d.toLocaleDateString("zh-CN");
 }
 
 export default async function AdminQuestionsPage({

@@ -9,13 +9,7 @@ import {
   CardTitle,
 } from "@repo/ui";
 import { trpcQuery } from "@/lib/trpc/server";
-
-function formatDateTime(value: any) {
-  if (!value) return "-";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return "-";
-  return d.toLocaleString("zh-CN");
-}
+import { formatDateTime } from "@/lib/utils";
 
 export default async function AdminUserDetailPage({
   params,

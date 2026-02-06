@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
+import { Suspense } from "react";
 import "./globals.css";
 import { TRPCProvider } from "./lib/trpc/provider";
 
@@ -25,7 +26,9 @@ export default function RootLayout({
   return (
     <html lang="zh-CN">
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
-        <TRPCProvider>{children}</TRPCProvider>
+        <Suspense fallback={<div>Loading...</div>}>
+          <TRPCProvider>{children}</TRPCProvider>
+        </Suspense>
       </body>
     </html>
   );

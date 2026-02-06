@@ -49,7 +49,7 @@ export default function LoginPage() {
       const biz = error?.data?.biz;
       if (biz?.code === "DEVICE_LIMIT_REACHED") {
         setConflictOpen(true);
-        toast.error(error.message || "登录冲突：达到设备上限");
+        toast.error(error.message || "登录设备过多");
         return;
       }
       toast.error(error.message || "登录失败");
@@ -202,9 +202,9 @@ export default function LoginPage() {
           <div className="mt-4 rounded-2xl border bg-background/80 backdrop-blur p-4 shadow-lg">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <div className="text-sm font-medium">登录冲突</div>
+                <div className="text-sm font-medium">账号同时登录设备过多</div>
                 <div className="mt-1 text-xs text-muted-foreground">
-                  你已在多台设备登录。可以踢下线部分设备后继续登录。
+                  为了账号安全，请退出部分旧设备后继续。
                 </div>
               </div>
               <Button
@@ -223,7 +223,7 @@ export default function LoginPage() {
                 onClick={() => revokeAllMutation.mutate()}
                 disabled={revokeAllMutation.isPending}
               >
-                踢出其他设备
+                退出其他设备
               </Button>
               <Button
                 size="sm"
@@ -246,7 +246,7 @@ export default function LoginPage() {
                       {d.deviceName} {d.isCurrent ? "（当前）" : ""}
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      {d.platform} · {d.browser} · 会话数 {d.sessionCount ?? 0}
+                      {d.platform} · {d.browser}
                     </div>
                   </div>
                   <Button
@@ -259,7 +259,7 @@ export default function LoginPage() {
                     }
                     disabled={revokeDeviceMutation.isPending || d.isCurrent}
                   >
-                    踢下线
+                    退出
                   </Button>
                 </div>
               ))}

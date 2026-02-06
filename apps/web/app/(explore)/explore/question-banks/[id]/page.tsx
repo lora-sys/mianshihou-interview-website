@@ -9,23 +9,7 @@ import {
   CardTitle,
 } from "@repo/ui";
 import { safeTrpcBatchQuery } from "@/lib/trpc/server";
-
-function parseTags(value: any): string[] {
-  if (!value) return [];
-  if (Array.isArray(value)) return value.map(String);
-  if (typeof value === "string") {
-    try {
-      const parsed = JSON.parse(value);
-      if (Array.isArray(parsed)) return parsed.map(String);
-    } catch {
-      return value
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean);
-    }
-  }
-  return [];
-}
+import { parseTags } from "@/lib/utils";
 
 export default async function ExploreQuestionBankDetailPage({
   params,

@@ -10,6 +10,7 @@ import {
 } from "@repo/ui";
 import { safeTrpcQuery } from "@/lib/trpc/server";
 import { Search } from "lucide-react";
+import { formatDate } from "@/lib/utils";
 
 function normalizeSearchParams(
   searchParams: Record<string, string | string[] | undefined> | undefined,
@@ -17,13 +18,6 @@ function normalizeSearchParams(
   const qRaw = searchParams?.q;
   const q = Array.isArray(qRaw) ? qRaw[0] : qRaw;
   return { q: (q ?? "").trim() };
-}
-
-function formatDate(value: any) {
-  if (!value) return "-";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return "-";
-  return d.toLocaleDateString("zh-CN");
 }
 
 export default async function ExploreQuestionBanksPage({

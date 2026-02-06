@@ -1,5 +1,4 @@
 import { cookies } from "next/headers";
-import { cache } from "react";
 
 type TRPCResponseEnvelope = Array<{
   result?: { data?: any };
@@ -27,23 +26,32 @@ async function trpcFetch(url: string, init: RequestInit) {
   const deviceId = store.get("mianshihou.device_id")?.value;
   if (deviceId) headers.set("x-device-id", deviceId);
   headers.set("accept", "application/json");
+
   return fetch(url, {
     ...init,
     headers,
-    cache: "no-store",
   });
+}
+
+export interface TrpcQueryOptions {
+  cache?: RequestCache;
+  next?: NextFetchRequestConfig;
 }
 
 export async function trpcQuery<
   TInput extends Record<string, any> | undefined,
   TOutput = any,
->(path: string, input?: TInput): Promise<TOutput> {
+>(path: string, input?: TInput, options?: TrpcQueryOptions): Promise<TOutput> {
   const apiUrl = getApiUrl().replace(/\/$/, "");
   const url = new URL(`${apiUrl}/${path}`);
   url.searchParams.set("batch", "1");
   url.searchParams.set("input", JSON.stringify({ 0: input ?? {} }));
 
-  const res = await trpcFetch(url.toString(), { method: "GET" });
+  const res = await trpcFetch(url.toString(), {
+    method: "GET",
+    cache: options?.cache ?? "no-store",
+    next: options?.next,
+  });
   const json = (await res.json()) as TRPCResponseEnvelope;
   const first = json[0];
   if (first?.error) {
@@ -56,9 +64,13 @@ export async function trpcQuery<
 export async function safeTrpcQuery<
   TInput extends Record<string, any> | undefined,
   TOutput = any,
->(path: string, input?: TInput): Promise<TOutput | null> {
+>(
+  path: string,
+  input?: TInput,
+  options?: TrpcQueryOptions,
+): Promise<TOutput | null> {
   try {
-    return await trpcQuery<TInput, TOutput>(path, input);
+    return await trpcQuery<TInput, TOutput>(path, input, options);
   } catch {
     return null;
   }
@@ -66,6 +78,7 @@ export async function safeTrpcQuery<
 
 export async function trpcBatchQuery<TOutput = any>(
   calls: Array<{ path: string; input?: Record<string, any> }>,
+  options?: TrpcQueryOptions,
 ): Promise<TOutput[]> {
   const apiUrl = getApiUrl().replace(/\/$/, "");
   const joinedPath = calls.map((c) => c.path).join(",");
@@ -77,7 +90,11 @@ export async function trpcBatchQuery<TOutput = any>(
   });
   url.searchParams.set("input", JSON.stringify(inputObj));
 
-  const res = await trpcFetch(url.toString(), { method: "GET" });
+  const res = await trpcFetch(url.toString(), {
+    method: "GET",
+    cache: options?.cache ?? "no-store",
+    next: options?.next,
+  });
   const json = (await res.json()) as TRPCResponseEnvelope;
 
   return calls.map((_, idx) => {
@@ -92,9 +109,10 @@ export async function trpcBatchQuery<TOutput = any>(
 
 export async function safeTrpcBatchQuery<TOutput = any>(
   calls: Array<{ path: string; input?: Record<string, any> }>,
+  options?: TrpcQueryOptions,
 ): Promise<Array<TOutput | null>> {
   try {
-    return await trpcBatchQuery<TOutput>(calls);
+    return await trpcBatchQuery<TOutput>(calls, options);
   } catch {
     return calls.map(() => null);
   }
@@ -123,7 +141,50 @@ export async function trpcMutation<
   return (first?.result?.data as TOutput) ?? (null as any);
 }
 
-export const getCurrentUser = cache(async () => {
+// 获取当前用户 - 注意：不能在 "use cache" 上下文中使用
+// 因为它依赖于 cookies() 动态数据源
+export async function getCurrentUser() {
   const res = await safeTrpcQuery("auth.getSession", {});
   return res?.data?.user ?? null;
-});
+}
+
+// 带 cookie 的 tRPC 查询 - 用于 "use cache" 上下文之外
+export async function trpcQueryWithAuth<
+  TInput extends Record<string, any> | undefined,
+  TOutput = any,
+>(path: string, input?: TInput, options?: TrpcQueryOptions): Promise<TOutput> {
+  return trpcQuery<TInput, TOutput>(path, input, options);
+}
+
+export async function safeTrpcQueryWithAuth<
+  TInput extends Record<string, any> | undefined,
+  TOutput = any,
+>(
+  path: string,
+  input?: TInput,
+  options?: TrpcQueryOptions,
+): Promise<TOutput | null> {
+  try {
+    return await trpcQueryWithAuth<TInput, TOutput>(path, input, options);
+  } catch {
+    return null;
+  }
+}
+
+export async function trpcBatchQueryWithAuth<TOutput = any>(
+  calls: Array<{ path: string; input?: Record<string, any> }>,
+  options?: TrpcQueryOptions,
+): Promise<TOutput[]> {
+  return trpcBatchQuery<TOutput>(calls, options);
+}
+
+export async function safeTrpcBatchQueryWithAuth<TOutput = any>(
+  calls: Array<{ path: string; input?: Record<string, any> }>,
+  options?: TrpcQueryOptions,
+): Promise<Array<TOutput | null>> {
+  try {
+    return await trpcBatchQueryWithAuth<TOutput>(calls, options);
+  } catch {
+    return calls.map(() => null);
+  }
+}

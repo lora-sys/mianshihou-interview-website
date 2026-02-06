@@ -3,8 +3,12 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { httpBatchLink } from "@trpc/client";
 import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import { trpc } from "./client";
-import { Toaster } from "sonner";
+
+const Toaster = dynamic(() => import("sonner").then((m) => m.Toaster), {
+  ssr: false,
+});
 
 const DEVICE_COOKIE = "mianshihou.device_id";
 

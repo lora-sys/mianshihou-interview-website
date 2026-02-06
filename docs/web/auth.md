@@ -23,7 +23,7 @@
 - API：并发登录指纹优先使用 `deviceId`，避免 `ip+ua` 误判
 - 设备踢下线：会删除 Postgres session token，确保被踢端真正下线
 
-## Bearer（JWT）鉴权（新增）
+## Bearer（JWT）鉴权
 
 - 目的：脚本/移动端/外部服务不方便携带 cookie 时使用
 - 方式：`Authorization: Bearer <token>`
@@ -31,9 +31,9 @@
 
 相关实现：
 
-- API JWT：[/apps/api/lib/jwt.ts](file:///Users/loralora/repos/mianshihou/apps/api/lib/jwt.ts)
-- tRPC context：[/apps/api/trpc/index.ts](file:///Users/loralora/repos/mianshihou/apps/api/trpc/index.ts)
-- 发放接口：[/apps/api/trpc/router/auth.ts](file:///Users/loralora/repos/mianshihou/apps/api/trpc/router/auth.ts)
+- API JWT：[jwt.ts](file:///Users/loralora/repos/mianshihou/apps/api/lib/jwt.ts)
+- tRPC context：[index.ts](file:///Users/loralora/repos/mianshihou/apps/api/trpc/index.ts)
+- 发放接口：[auth.ts](file:///Users/loralora/repos/mianshihou/apps/api/trpc/router/auth.ts)
 
 ## 登出
 
@@ -41,4 +41,4 @@
 
 相关实现：
 
-- [/logout/route.ts](file:///Users/loralora/repos/mianshihou/apps/web/app/logout/route.ts)
+- [logout route.ts](file:///Users/loralora/repos/mianshihou/apps/web/app/logout/route.ts)

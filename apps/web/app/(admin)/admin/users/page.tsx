@@ -9,9 +9,14 @@ import {
   CardTitle,
   Input,
 } from "@repo/ui";
+import dynamic from "next/dynamic";
 import { trpcQuery } from "@/lib/trpc/server";
 import { Search, Trash2 } from "lucide-react";
-import { ConfirmSubmit } from "@/components/dialog/confirm-submit";
+import { formatDateTime } from "@/lib/utils";
+
+const ConfirmSubmit = dynamic(() =>
+  import("@/components/confirm-submit").then((m) => m.ConfirmSubmit),
+);
 
 function normalizeSearchParams(
   searchParams: Record<string, string | string[] | undefined> | undefined,
@@ -25,13 +30,6 @@ function normalizeSearchParams(
     q: (q ?? "").trim(),
     page: Number.isFinite(page) && page > 0 ? page : 1,
   };
-}
-
-function formatDateTime(value: any) {
-  if (!value) return "-";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return "-";
-  return d.toLocaleString("zh-CN");
 }
 
 export default async function AdminUsersPage({

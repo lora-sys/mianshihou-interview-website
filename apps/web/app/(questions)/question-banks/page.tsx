@@ -10,13 +10,7 @@ import {
   Input,
 } from "@repo/ui";
 import { trpcQuery } from "@/lib/trpc/server";
-
-function formatDate(value: any) {
-  if (!value) return "-";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return "-";
-  return d.toLocaleDateString("zh-CN");
-}
+import { formatDate } from "@/lib/utils";
 
 function normalizeSearchParams(
   searchParams: Record<string, string | string[] | undefined> | undefined,

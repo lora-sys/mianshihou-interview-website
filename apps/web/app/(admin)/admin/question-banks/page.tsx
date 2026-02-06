@@ -8,10 +8,17 @@ import {
   CardTitle,
   Input,
 } from "@repo/ui";
+import dynamic from "next/dynamic";
 import { trpcQuery } from "@/lib/trpc/server";
 import { Search, Trash2 } from "lucide-react";
-import { ConfirmSubmit } from "@/components/dialog/confirm-submit";
-import { ConfirmFormAction } from "@/components/dialog/confirm-form-action";
+import { formatDate } from "@/lib/utils";
+
+const ConfirmSubmit = dynamic(() =>
+  import("@/components/confirm-submit").then((m) => m.ConfirmSubmit),
+);
+const ConfirmFormAction = dynamic(() =>
+  import("@/components/confirm-form-action").then((m) => m.ConfirmFormAction),
+);
 
 function normalizeSearchParams(
   searchParams: Record<string, string | string[] | undefined> | undefined,
@@ -30,13 +37,6 @@ function normalizeSearchParams(
     notice: (notice ?? "").trim(),
     error: (error ?? "").trim(),
   };
-}
-
-function formatDate(value: any) {
-  if (!value) return "-";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return "-";
-  return d.toLocaleDateString("zh-CN");
 }
 
 export default async function AdminQuestionBanksPage({

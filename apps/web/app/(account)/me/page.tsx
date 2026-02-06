@@ -11,13 +11,7 @@ import {
   CardTitle,
 } from "@repo/ui";
 import Link from "next/link";
-
-function formatDateTime(ts?: number) {
-  if (!ts) return "-";
-  const d = new Date(ts);
-  if (Number.isNaN(d.getTime())) return "-";
-  return d.toLocaleString("zh-CN");
-}
+import { formatDateTime } from "@/lib/utils";
 
 export default async function MePage() {
   const user = await getCurrentUser();
@@ -221,17 +215,19 @@ export default async function MePage() {
           <Card className="shadow-sm">
             <CardHeader>
               <CardTitle>登录设备</CardTitle>
-              <CardDescription>最多同时登录 3 个设备（可配置）</CardDescription>
+              <CardDescription>
+                为保护账号安全，最多同时登录 3 台设备。
+              </CardDescription>
             </CardHeader>
             <CardContent className="p-0">
               <div className="border-t bg-background px-4 py-3 flex justify-between gap-2">
                 <div className="text-xs text-muted-foreground">
-                  当前设备已标记为“当前”，不可被踢下线。
+                  当前设备已标记为“当前”，不会被注销。
                 </div>
                 <form action="/me/devices/revoke-all" method="POST">
                   <input type="hidden" name="redirect" value="/me" />
                   <Button size="sm" variant="destructive" type="submit">
-                    踢出其他设备
+                    注销其他设备
                   </Button>
                 </form>
               </div>
@@ -245,9 +241,6 @@ export default async function MePage() {
                       </th>
                       <th className="px-4 py-3 font-medium whitespace-nowrap">
                         最近活跃
-                      </th>
-                      <th className="px-4 py-3 font-medium whitespace-nowrap">
-                        会话数
                       </th>
                       <th className="px-4 py-3 font-medium w-44 text-right">
                         操作
@@ -270,9 +263,6 @@ export default async function MePage() {
                           <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">
                             {formatDateTime(d.lastSeen)}
                           </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">
-                            {d.sessionCount ?? 0}
-                          </td>
                           <td className="px-4 py-3">
                             <div className="flex items-center justify-end gap-2">
                               {d.isCurrent ? (
@@ -294,7 +284,7 @@ export default async function MePage() {
                                     variant="outline"
                                     type="submit"
                                   >
-                                    踢下线
+                                    注销
                                   </Button>
                                 </form>
                               )}
@@ -306,7 +296,7 @@ export default async function MePage() {
                       <tr>
                         <td
                           className="px-4 py-10 text-center text-muted-foreground"
-                          colSpan={5}
+                          colSpan={4}
                         >
                           暂无设备信息
                         </td>

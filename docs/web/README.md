@@ -1,4 +1,4 @@
-# apps/web/docs
+# Web 文档（apps/web）
 
 - [架构总览](./architecture.md)
 - [架构图（Excalidraw）](./architecture.excalidraw.md)
